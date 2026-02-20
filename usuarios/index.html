@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Usuários - Sistema de Controle de Documentos Ocupacionais</title>
+    <link rel="stylesheet" href="../assets/css/global.css" />
+    <link rel="stylesheet" href="../assets/css/layout.css" />
+    <link rel="stylesheet" href="./usuarios.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <!-- MENU LATERAL FIXO -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-logo">SD</div>
+          <div class="sidebar-title">
+            <span class="sidebar-title-main">Docs Ocupacionais</span>
+            <span class="sidebar-title-sub">Gestão de Usuários</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div>
+            <div class="nav-section-label">Navegação</div>
+            <a class="nav-item" href="../dashboard/index.html">
+              <div class="nav-item-icon">🏠</div>
+              <span>Dashboard</span>
+            </a>
+            <a class="nav-item" href="../cadastro/index.html">
+              <div class="nav-item-icon">➕</div>
+              <span>Cadastrar empresa</span>
+            </a>
+            <a class="nav-item" href="../visualizar/index.html">
+              <div class="nav-item-icon">📋</div>
+              <span>Visualizar empresas</span>
+            </a>
+            <a class="nav-item" href="../historico/index.html">
+              <div class="nav-item-icon">📂</div>
+              <span>Histórico</span>
+            </a>
+            <a class="nav-item" href="../controle/index.html">
+              <div class="nav-item-icon">📊</div>
+              <span>Controle</span>
+            </a>
+            <a class="nav-item active" href="../usuarios/index.html">
+              <div class="nav-item-icon">👥</div>
+              <span>Usuários</span>
+            </a>
+          </div>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="sidebar-user">
+            <div class="sidebar-user-avatar" data-sidebar-user-avatar></div>
+            <div class="sidebar-user-info">
+              <div class="sidebar-user-name" data-sidebar-user-name>Usuário</div>
+              <div class="sidebar-user-role" data-sidebar-user-role>Perfil</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary sidebar-logout-btn" type="button" data-action="logout">Sair</button>
+        </div>
+      </aside>
+
+      <!-- CONTEÚDO PRINCIPAL -->
+      <main class="app-main">
+        <header class="page-header">
+          <div class="page-title-group">
+            <h1 class="page-title">Usuários do sistema</h1>
+            <p class="page-subtitle">
+              Cadastre e gerencie quem tem acesso ao sistema.
+            </p>
+          </div>
+          <div class="page-actions">
+            <!-- Botão de alternância de tema -->
+            <button type="button" class="btn btn-secondary theme-toggle" data-theme-toggle>
+              <span class="theme-toggle-icon" data-theme-icon>🌙</span>
+              <span class="theme-toggle-label" data-theme-label>Modo escuro</span>
+            </button>
+          </div>
+        </header>
+
+        <section class="page-content">
+          <!-- Formulário de cadastro de usuário -->
+          <section class="card mb-3" id="cadastro-usuario-card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Novo usuário</div>
+                <div class="card-subtitle">Cadastre um novo administrador ou usuário padrão.</div>
+              </div>
+            </div>
+            
+            <form id="form-novo-usuario">
+                <div class="form-group form-group-inline">
+                    <div style="flex: 2;">
+                        <label for="nome">Nome Completo</label>
+                        <input type="text" id="nome" class="form-control" required placeholder="Ex: João da Silva">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="perfil">Perfil</label>
+                        <select id="perfil" class="form-control" required>
+                            <option value="usuario">Usuário Padrão</option>
+                            <option value="admin">Administrador</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group form-group-inline">
+                    <div style="flex: 1;">
+                        <label for="email">E-mail</label>
+                        <input type="email" id="email" class="form-control" required placeholder="email@exemplo.com">
+                    </div>
+                    <div style="flex: 1;">
+                        <label for="senha">Senha</label>
+                        <input type="password" id="senha" class="form-control" required placeholder="Mínimo 6 caracteres" minlength="6">
+                    </div>
+                </div>
+                
+                <div id="feedback-usuario" class="feedback"></div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn" id="btn-criar-usuario">Criar Usuário</button>
+                </div>
+            </form>
+          </section>
+
+          <!-- Lista de usuários existentes -->
+          <section class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Usuários Cadastrados</div>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Perfil</th>
+                    <th>Criado em</th>
+                  </tr>
+                </thead>
+                <tbody id="lista-usuarios">
+                  <tr>
+                    <td colspan="4" class="text-center text-muted">Carregando...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <!-- Scripts do Supabase e Lógica -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../assets/js/supabase-client.js"></script>
+    <script src="../assets/js/auth.js"></script>
+    <script src="../assets/js/storage.js"></script>
+    <script src="../assets/js/utils.js"></script>
+    <script src="../assets/js/theme.js"></script>
+    <script src="./usuarios.js"></script>
+  </body>
+</html>
