@@ -297,43 +297,62 @@ function registrarEnvioFormulario(session) {
     // Apenas para novos cadastros (!idExistente)
     if (!idExistente) {
         try {
-            // Verifica CNPJ
-            const { data: cnpjExists, error: errCnpj } = await supabase
-                .from('empresas')
-                .select('id')
-                .eq('cnpj', cnpj)
-                .maybeSingle();
+            console.log("Iniciando verificação de duplicidade...");
             
-            if (cnpjExists) {
-                feedback.textContent = "Já existe uma empresa cadastrada com este CNPJ.";
-                feedback.classList.add("error");
-                btnSalvar.disabled = false;
-                btnSalvar.textContent = "Salvar cadastro"; // Restaura texto
-                return;
-            }
-
-            // Verifica Nome (Case insensitive se possível, ou exato)
-            // Supabase 'ilike' é case-insensitive.
-            const { data: nomeExists, error: errNome } = await supabase
+            // 1. Prepara CNPJ em dois formatos (Limpo e Formatado)
+            const cnpjLimpo = cnpj.replace(/\D/g, ""); 
+            const cnpjFormatado = cnpjLimpo.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+            
+            // Busca por qualquer um dos dois formatos
+            const { data: listCnpj, error: errCnpj } = await supabase
                 .from('empresas')
-                .select('id')
-                .ilike('nome', nome) // Busca case-insensitive
-                .maybeSingle();
+                .select('id, cnpj')
+                .or(`cnpj.eq.${cnpjLimpo},cnpj.eq.${cnpjFormatado}`)
+                .limit(1);
 
-            if (nomeExists) {
-                feedback.textContent = "Já existe uma empresa cadastrada com este Nome.";
+            if (errCnpj) {
+                console.error("Erro SQL CNPJ:", errCnpj);
+                throw errCnpj;
+            }
+            
+            if (listCnpj && listCnpj.length > 0) {
+                console.warn("Duplicidade de CNPJ encontrada:", listCnpj);
+                feedback.textContent = `Já existe uma empresa cadastrada com este CNPJ (${listCnpj[0].cnpj}).`;
                 feedback.classList.add("error");
                 btnSalvar.disabled = false;
-                btnSalvar.textContent = "Salvar cadastro"; // Restaura texto
+                btnSalvar.textContent = "Salvar cadastro";
                 return;
             }
+
+            // 2. Verifica Nome (Case insensitive)
+            const { data: listNome, error: errNome } = await supabase
+                .from('empresas')
+                .select('id, nome')
+                .ilike('nome', nome.trim())
+                .limit(1);
+
+            if (errNome) {
+                console.error("Erro SQL Nome:", errNome);
+                throw errNome;
+            }
+
+            if (listNome && listNome.length > 0) {
+                console.warn("Duplicidade de Nome encontrada:", listNome);
+                feedback.textContent = `Já existe uma empresa cadastrada com o nome "${listNome[0].nome}".`;
+                feedback.classList.add("error");
+                btnSalvar.disabled = false;
+                btnSalvar.textContent = "Salvar cadastro";
+                return;
+            }
+
+            console.log("Verificação de duplicidade: OK (Nenhum conflito encontrado)");
 
         } catch (checkErr) {
-            console.error("Erro ao verificar duplicidade:", checkErr);
-            // Opcional: Bloquear ou deixar passar com aviso? Melhor bloquear por segurança.
-            feedback.textContent = "Erro ao validar duplicidade. Tente novamente.";
+            console.error("Erro crítico ao verificar duplicidade:", checkErr);
+            feedback.textContent = "Erro ao validar dados no servidor. Verifique sua conexão e tente novamente.";
             feedback.classList.add("error");
             btnSalvar.disabled = false;
+            btnSalvar.textContent = "Salvar cadastro";
             return;
         }
     }
