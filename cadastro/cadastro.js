@@ -178,16 +178,28 @@ async function carregarEmpresaParaEdicao(id, session) {
                 }
             });
 
-        // 3. Altera botão de salvar
+        // 3. Altera comportamento do botão de salvar
         const btnSalvar = document.getElementById("btn-salvar");
         if (btnSalvar) {
             btnSalvar.textContent = "Salvar Novos Documentos";
-            // Se todos os documentos já existirem, desabilita o botão também (opcional, mas bom para UX)
-            if (docs.pcmso && docs.ltcat && docs.pgr) {
-                btnSalvar.disabled = true;
-                btnSalvar.textContent = "Todos documentos já cadastrados";
-                btnSalvar.title = "Não há ações disponíveis para seu perfil.";
-            }
+            btnSalvar.disabled = true; // Bloqueado por padrão
+            btnSalvar.title = "Para salvar, adicione um documento faltante.";
+            btnSalvar.style.opacity = "0.6";
+
+            // Libera o botão APENAS se um arquivo for selecionado
+            const inputsArquivo = ["pcmpdf", "ltcatpdf", "pgrpdf"];
+            inputsArquivo.forEach(idFile => {
+                const fileInput = document.getElementById(idFile);
+                if (fileInput && !fileInput.disabled) {
+                    fileInput.addEventListener("change", function() {
+                        if (this.files && this.files.length > 0) {
+                            btnSalvar.disabled = false;
+                            btnSalvar.style.opacity = "1";
+                            btnSalvar.title = "Salvar alterações";
+                        }
+                    });
+                }
+            });
         }
 
         // 4. Bloqueia documentos que JÁ existem
