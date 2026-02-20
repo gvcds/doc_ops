@@ -1,58 +1,46 @@
 # Sistema de Controle de Documentos Ocupacionais (SCDO)
 
-Sistema web para gerenciamento de empresas, filiais e controle de vigência de documentos de Saúde e Segurança do Trabalho (SST), como PCMSO, LTCAT e PGR.
+Uma plataforma robusta para gestão e monitoramento de documentos de saúde e segurança do trabalho (PCMSO, LTCAT, PGR). O sistema oferece alertas automáticos de vencimento, controle de acesso por perfil e suporte completo a dispositivos móveis.
 
-## 📋 Sobre o Projeto
+## 🚀 Tecnologias Utilizadas
 
-Este projeto é uma aplicação **Client-Side** (roda diretamente no navegador) que utiliza **LocalStorage** para persistência de dados. O objetivo é permitir o cadastro de empresas e o upload de seus documentos regulatórios, oferecendo uma visão clara do status de vigência e hierarquia entre matrizes e filiais.
+### Frontend
+- **HTML5 & CSS3 Moderno**: Utilização de variáveis CSS (Custom Properties) para suporte nativo a temas (Dark/Light Mode), CSS Grid e Flexbox para layouts complexos e responsivos.
+- **Vanilla JavaScript (ES6+)**: Implementação de lógica modular sem dependência de frameworks pesados, garantindo performance excepcional e facilidade de manutenção.
+- **Responsividade Mobile-First**: Sistema adaptável com navegação lateral dinâmica e tabelas otimizadas para telas pequenas.
 
-> **Nota:** Como os arquivos PDF são convertidos para Base64 e salvos no LocalStorage, este sistema tem um limite de armazenamento dependente do navegador (geralmente entre 5MB e 10MB). É ideal para demonstrações ou controle de pequeno volume de dados.
+### Backend & Infraestrutura (BaaS)
+- **Supabase**: Utilizado como infraestrutura backend principal, provendo:
+  - **PostgreSQL**: Banco de dados relacional para armazenamento de perfis e dados de empresas.
+  - **Supabase Auth**: Sistema de autenticação seguro com JWT e proteção de rotas.
+  - **Supabase Storage**: Armazenamento em nuvem para arquivos PDF dos documentos ocupacionais.
+  - **Edge Functions & RPC**: Funções no lado do servidor (Postgres Functions) para operações administrativas seguras que exigem privilégios elevados.
 
-## 🚀 Funcionalidades
+## 🛠️ Funcionalidades Principais
 
-*   **Autenticação:** Sistema de login com diferenciação de perfis (Admin vs Usuário).
-*   **Gestão de Empresas:**
-    *   Cadastro de Matrizes e Filiais.
-    *   Vínculo hierárquico (Filial -> Matriz).
-    *   Dados cadastrais (CNPJ, Datas, Status, Médico Coordenador).
-*   **Controle de Documentos:**
-    *   Upload obrigatório de PCMSO, LTCAT e PGR (apenas PDF).
-    *   Visualização dos documentos dentro do próprio sistema.
-*   **Dashboard Visual:**
-    *   Indicadores de status (Vencido, A vencer, Em dia).
-    *   Listagem expansível de filiais.
+- **Dashboard Inteligente**: Visão geral de documentos vencidos, a vencer (próximos 90 dias) e estatísticas gerais.
+- **Gestão de Empresas e Filiais**: Estrutura hierárquica para organizar matrizes e suas respectivas unidades.
+- **Controle de Vencimentos**: Alertas visuais automáticos baseados na validade dos documentos.
+- **Histórico de Documentos**: Explorador de arquivos organizado por ano e unidade.
+- **Gestão de Usuários**: Níveis de acesso distintos (Administrador vs. Usuário Padrão) com controle de permissões RPC.
+- **Dark/Light Mode**: Interface personalizável com persistência de preferência via LocalStorage.
 
-## 🛠️ Tecnologias Utilizadas
+## 📂 Estrutura do Projeto
 
-*   HTML5
-*   CSS3 (Design responsivo e temas)
-*   JavaScript (Vanilla ES6+)
-*   LocalStorage (Banco de dados local)
+- `/assets`: Recursos compartilhados (CSS global, lógica de autenticação, temas e utilitários).
+- `/cadastro`: Módulo de inserção e edição de empresas e documentos.
+- `/dashboard`: Painel principal com indicadores e alertas.
+- `/visualizar`: Listagem detalhada e visualização de PDFs.
+- `/historico`: Arquivo digital de documentos antigos.
+- `/controle`: Relatórios e filtros por período.
+- `/usuarios`: Área administrativa para gestão de contas.
 
-## 📦 Como Usar
+## 🔐 Segurança
 
-1.  Baixe ou clone este repositório.
-2.  Abra o arquivo `index.html` (na raiz) em seu navegador.
-3.  O sistema redirecionará automaticamente para a tela de login.
+O sistema implementa múltiplas camadas de segurança:
+1. **Row Level Security (RLS)**: Políticas no banco de dados que garantem que usuários acessem apenas o que lhes é permitido.
+2. **Security Definer Functions**: Operações críticas (como exclusão de usuários) são realizadas através de funções RPC que validam o perfil do solicitante no lado do servidor.
+3. **Persistência Segura**: Tokens de sessão gerenciados via Supabase Auth.
 
-### Credenciais de Acesso (Padrão)
-
-O sistema já vem com usuários pré-configurados no arquivo `assets/js/auth.js`:
-
-| Perfil | Email | Senha | Permissões |
-| :--- | :--- | :--- | :--- |
-| **Administrador** | `pereira@gmai.come` | `12345678` | Acesso total (Criar, Editar, Excluir) |
-| **Usuário** | `usuario@example.com` | `123456` | Acesso restrito (Visualizar, Criar) |
-
-## 📂 Estrutura de Pastas
-
-*   `/assets`: Estilos globais (CSS) e lógicas compartilhadas (JS de Auth, Storage, Utils).
-*   `/cadastro`: Tela de criação e edição de empresas.
-*   `/visualizar`: Dashboard principal com a lista de empresas e status.
-*   `/login`: Tela de autenticação.
-*   `/usuarios`: (Opcional) Gestão de usuários do sistema.
-
-## ⚠️ Limitações Conhecidas
-
-*   **Persistência:** Ao limpar o cache do navegador, todos os dados cadastrados serão perdidos.
-*   **Tamanho de Arquivos:** PDFs muito grandes podem falhar ao salvar devido ao limite do LocalStorage. Recomenda-se arquivos pequenos.
+---
+Desenvolvido com foco em eficiência, escalabilidade e experiência do usuário.
