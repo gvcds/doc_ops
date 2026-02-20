@@ -121,6 +121,8 @@ function configurarFormulario() {
  */
 async function listarUsuarios() {
     const tbody = document.getElementById("lista-usuarios");
+    const currentSession = getCurrentSession();
+    const currentUserId = currentSession ? currentSession.id : null;
     
     try {
         const { data, error } = await supabase
@@ -143,18 +145,23 @@ async function listarUsuarios() {
             const dataCriacao = user.created_at ? formatDateToBR(user.created_at.split('T')[0]) : "-";
             const perfilLabel = user.perfil === 'admin' ? 'Admin' : 'Usuário';
             const perfilClass = user.perfil === 'admin' ? 'admin' : 'usuario';
+            
+            // Se o ID for o mesmo do usuário logado, não mostramos o botão de excluir
+            const isSelf = user.id === currentUserId;
 
             tr.innerHTML = `
-                <td data-label="Nome" class="user-name-cell">${user.nome || "Sem nome"}</td>
+                <td data-label="Nome" class="user-name-cell">${user.nome || "Sem nome"} ${isSelf ? '<small class="text-muted">(Você)</small>' : ''}</td>
                 <td data-label="Email">${user.email}</td>
                 <td data-label="Perfil">
                     <span class="badge-perfil ${perfilClass}">${perfilLabel}</span>
                 </td>
                 <td data-label="Criado em">${dataCriacao}</td>
                 <td class="text-right">
-                    <button class="btn-action btn-delete" title="Excluir Usuário" onclick="excluirUsuario('${user.id}', '${user.nome || user.email}')">
-                        🗑️
-                    </button>
+                    ${!isSelf ? `
+                        <button class="btn-action btn-delete" title="Excluir Usuário" onclick="excluirUsuario('${user.id}', '${user.nome || user.email}')">
+                            🗑️
+                        </button>
+                    ` : '<span class="text-muted" style="font-size: 0.75rem">Conta Atual</span>'}
                 </td>
             `;
             tbody.appendChild(tr);
@@ -170,6 +177,12 @@ async function listarUsuarios() {
  * Exclui um usuário chamando a função RPC no Supabase.
  */
 async function excluirUsuario(userId, userName) {
+    const currentSession = getCurrentSession();
+    if (currentSession && userId === currentSession.id) {
+        alert("Você não pode excluir sua própria conta enquanto estiver logado.");
+        return;
+    }
+
     if (!confirm(`Tem certeza que deseja excluir permanentemente o usuário "${userName}"? Esta ação não pode ser desfeita.`)) {
         return;
     }
