@@ -124,25 +124,33 @@
           </section>
 
           <!-- Lista de usuários existentes -->
-          <section class="card">
+          <section class="card fade-in">
             <div class="card-header">
-              <div>
-                <div class="card-title">Usuários Cadastrados</div>
+              <div class="card-title-group">
+                <div class="card-icon">👥</div>
+                <div>
+                  <div class="card-title">Usuários Cadastrados</div>
+                  <div class="card-subtitle">Gerencie as permissões de acesso ao sistema.</div>
+                </div>
               </div>
             </div>
             <div class="table-responsive">
-              <table class="table">
+              <table class="table-custom">
                 <thead>
                   <tr>
                     <th>Nome</th>
                     <th>Email</th>
                     <th>Perfil</th>
                     <th>Criado em</th>
+                    <th class="text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody id="lista-usuarios">
                   <tr>
-                    <td colspan="4" class="text-center text-muted">Carregando...</td>
+                    <td colspan="5" class="text-center text-muted">
+                      <div class="loading-spinner"></div>
+                      Carregando usuários...
+                    </td>
                   </tr>
                 </tbody>
               </table>

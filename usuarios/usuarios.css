@@ -12,71 +12,169 @@
   margin: 1.2rem 0;
 }
 
-.usuarios-lista {
-  margin-top: 0.2rem;
-}
-
-.usuarios-tabela {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.usuarios-tabela thead {
-  background: rgba(31, 41, 55, 0.8);
-}
-
-.usuarios-tabela th,
-.usuarios-tabela td {
-  padding: 0.55rem 0.7rem;
-  text-align: left;
-}
-
-.usuarios-tabela th {
-  font-weight: 500;
-  color: var(--color-text-muted);
-  border-bottom: 1px solid rgba(55, 65, 81, 0.9);
-}
-
-.usuarios-tabela tbody tr:nth-child(even) {
-  background: rgba(15, 23, 42, 0.8);
-}
-
-.usuarios-tabela tbody tr:nth-child(odd) {
-  background: rgba(15, 23, 42, 0.95);
-}
-
-.usuarios-tabela tbody tr:hover {
-  background: rgba(37, 99, 235, 0.15);
-}
-
-.usuarios-acoes {
+/* Modern User Table Styles */
+.card-title-group {
   display: flex;
-  gap: 0.4rem;
+  align-items: center;
+  gap: 1rem;
 }
 
-.usuarios-acoes .btn {
-  padding-inline: 0.7rem;
-  padding-block: 0.25rem;
-  font-size: 0.78rem;
+.card-icon {
+  width: 42px;
+  height: 42px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 1.25rem;
 }
 
-.usuarios-badge-perfil {
-  font-size: 0.78rem;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(55, 65, 81, 0.9);
+.table-custom {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-top: 0.5rem;
 }
 
-.usuarios-badge-perfil.admin {
-  border-color: rgba(37, 99, 235, 0.9);
-  color: #bfdbfe;
-}
-
-.usuarios-badge-perfil.usuario {
-  border-color: rgba(107, 114, 128, 0.9);
+.table-custom th {
+  text-align: left;
+  padding: 1rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-soft);
+  font-weight: 600;
+}
+
+.table-custom td {
+  padding: 1rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+  vertical-align: middle;
+}
+
+.table-custom tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.table-custom tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+body.light-mode .table-custom tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.table-custom tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* User Name Styling */
+.user-name-cell {
+  font-weight: 500;
+  color: var(--color-text-main);
+}
+
+/* Badge Styles */
+.badge-perfil {
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+  text-transform: capitalize;
+}
+
+.badge-perfil.admin {
+  background: rgba(37, 99, 235, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(37, 99, 235, 0.3);
+}
+
+.badge-perfil.usuario {
+  background: rgba(156, 163, 175, 0.1);
+  color: #9ca3af;
+  border: 1px solid rgba(156, 163, 175, 0.2);
+}
+
+body.light-mode .badge-perfil.admin {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+body.light-mode .badge-perfil.usuario {
+  background: #f3f4f6;
+  color: #4b5563;
+  border-color: #d1d5db;
+}
+
+/* Action Buttons */
+.btn-action {
+  padding: 0.4rem;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-action:hover {
+  background: var(--color-bg-elevated-soft);
+  color: var(--color-text-main);
+  border-color: var(--color-border-soft);
+}
+
+.btn-delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+/* Loading state */
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border-soft);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 720px) {
+  .table-custom thead { display: none; }
+  .table-custom, .table-custom tbody, .table-custom tr, .table-custom td {
+    display: block;
+    width: 100%;
+  }
+  .table-custom tr {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--color-border-soft);
+  }
+  .table-custom td {
+    padding: 0.25rem 1rem;
+    border: none;
+  }
+  .table-custom td:first-child { font-weight: 700; font-size: 1rem; }
+  .table-custom td::before {
+    content: attr(data-label);
+    display: inline-block;
+    width: 80px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
 }
 
 .usuarios-hint {

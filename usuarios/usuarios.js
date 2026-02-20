@@ -133,7 +133,7 @@ async function listarUsuarios() {
         tbody.innerHTML = "";
 
         if (!data || data.length === 0) {
-            tbody.innerHTML = "<tr><td colspan='4' class='text-center'>Nenhum usuário encontrado.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='5' class='text-center'>Nenhum usuário encontrado.</td></tr>";
             return;
         }
 
@@ -141,18 +141,27 @@ async function listarUsuarios() {
             const tr = document.createElement("tr");
             
             const dataCriacao = user.created_at ? formatDateToBR(user.created_at.split('T')[0]) : "-";
+            const perfilLabel = user.perfil === 'admin' ? 'Admin' : 'Usuário';
+            const perfilClass = user.perfil === 'admin' ? 'admin' : 'usuario';
 
             tr.innerHTML = `
-                <td>${user.nome || "Sem nome"}</td>
-                <td>${user.email}</td>
-                <td><span class="badge ${user.perfil === 'admin' ? 'badge-primary' : 'badge-secondary'}">${user.perfil}</span></td>
-                <td>${dataCriacao}</td>
+                <td data-label="Nome" class="user-name-cell">${user.nome || "Sem nome"}</td>
+                <td data-label="Email">${user.email}</td>
+                <td data-label="Perfil">
+                    <span class="badge-perfil ${perfilClass}">${perfilLabel}</span>
+                </td>
+                <td data-label="Criado em">${dataCriacao}</td>
+                <td class="text-right">
+                    <button class="btn-action btn-delete" title="Excluir Usuário (desativado)" onclick="alert('Funcionalidade de exclusão requer permissões de API de gerenciamento de usuários do Supabase.')">
+                        🗑️
+                    </button>
+                </td>
             `;
             tbody.appendChild(tr);
         });
 
     } catch (err) {
         console.error("Erro ao listar usuários:", err);
-        tbody.innerHTML = "<tr><td colspan='4' class='text-center error'>Erro ao carregar usuários.</td></tr>";
+        tbody.innerHTML = "<tr><td colspan='5' class='text-center error'>Erro ao carregar usuários.</td></tr>";
     }
 }
