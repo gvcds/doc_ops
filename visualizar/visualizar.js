@@ -291,7 +291,7 @@ function criarCardEmpresa(empresa, filiais, filiaisWrapper, session) {
   detalhes.className = "empresa-detalhes";
 
   const linha1 = document.createElement("div");
-  linha1.textContent = `Status: ${empresa.statusEmpresa} · Médico coordenador: ${empresa.medicoCoordenador}`;
+  linha1.textContent = `Status: ${empresa.statusEmpresa}`;
 
   const linha2 = document.createElement("div");
   linha2.textContent = `E-Social: ${empresa.esocial ? "Sim" : "Não"}`;
@@ -391,7 +391,7 @@ function criarCardFilial(empresa, session) {
   detalhes.className = "empresa-detalhes";
 
   const linha1 = document.createElement("div");
-  linha1.textContent = `Status: ${empresa.statusEmpresa} · Médico coordenador: ${empresa.medicoCoordenador}`;
+  linha1.textContent = `Status: ${empresa.statusEmpresa}`;
 
   const linha2 = document.createElement("div");
   linha2.textContent = `E-Social: ${empresa.esocial ? "Sim" : "Não"}`;
@@ -472,13 +472,47 @@ function criarBotoesDocumentos(empresa, session) {
   ["pcmso", "ltcat", "pgr"].forEach((tipo) => {
     const doc = docs[tipo];
     
-    // Grupo de botões
+    // Grupo de botões e info
+    const docWrapper = document.createElement("div");
+    docWrapper.style.display = "flex";
+    docWrapper.style.flexDirection = "column";
+    docWrapper.style.gap = "4px";
+    docWrapper.style.marginBottom = "8px";
+    docWrapper.style.padding = "10px";
+    docWrapper.style.border = "1px solid rgba(0,0,0,0.1)";
+    docWrapper.style.borderRadius = "8px";
+    docWrapper.style.backgroundColor = "rgba(0,0,0,0.02)";
+    docWrapper.style.minWidth = "220px";
+
+    const docTypeLabel = document.createElement("div");
+    docTypeLabel.style.fontWeight = "bold";
+    docTypeLabel.style.fontSize = "0.9rem";
+    docTypeLabel.textContent = tipo.toUpperCase();
+    
+    // Calcula status para cor do label (se o documento existe)
+    if (doc) {
+        const dataFim = doc.dataTermino || empresa.dataTermino;
+        const statusDoc = calcularStatusPorDataTermino(dataFim);
+        if (statusDoc.status === "vencido") docTypeLabel.style.color = "#e74c3c";
+        else if (statusDoc.status === "aviso") docTypeLabel.style.color = "#f1c40f";
+    }
+
+    docWrapper.appendChild(docTypeLabel);
+
     const docGroup = document.createElement("div");
     docGroup.className = "btn-group";
     docGroup.style.display = "inline-flex";
     docGroup.style.alignItems = "center";
     
     if (doc) {
+        // Info do responsável
+        const respInfo = document.createElement("div");
+        respInfo.style.fontSize = "0.8rem";
+        respInfo.style.color = "var(--text-muted)";
+        const labelResp = tipo === "pcmso" ? "Médico coordenador" : "Responsável técnico";
+        respInfo.textContent = `${labelResp}: ${doc.responsavel || "-"}`;
+        docWrapper.appendChild(respInfo);
+
         // Calcula status individual deste documento
         const dataFim = doc.dataTermino || empresa.dataTermino; // Fallback
         const statusDoc = calcularStatusPorDataTermino(dataFim);
@@ -498,7 +532,7 @@ function criarBotoesDocumentos(empresa, session) {
         btnView.title = `${doc.nomeArquivo || "PDF"} (${validadeTexto})`;
         
         // Texto do botão
-        btnView.innerHTML = `<span style="color:${statusColor}">${tipo.toUpperCase()}</span>`;
+        btnView.innerHTML = `Visualizar`;
         
         // Se for admin, remove bordas direitas
         if (session.perfil === "admin") {
@@ -549,7 +583,7 @@ function criarBotoesDocumentos(empresa, session) {
         btnAdd.className = "btn";
         btnAdd.style.border = "1px dashed currentColor";
         btnAdd.style.opacity = "0.7";
-        btnAdd.textContent = `+ ${tipo.toUpperCase()}`;
+        btnAdd.textContent = `Adicionar PDF`;
         btnAdd.title = "Adicionar documento faltando";
         
         btnAdd.addEventListener("click", function(e) {
@@ -561,7 +595,8 @@ function criarBotoesDocumentos(empresa, session) {
     }
     
     if (docGroup.children.length > 0) {
-        docButtons.appendChild(docGroup);
+        docWrapper.appendChild(docGroup);
+        docButtons.appendChild(docWrapper);
     }
   });
   

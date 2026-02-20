@@ -178,16 +178,6 @@
             </div>
 
             <div class="form-group">
-              <label for="medicoCoordenador">Médico coordenador</label>
-              <input
-                type="text"
-                id="medicoCoordenador"
-                class="form-control"
-                required
-              />
-            </div>
-
-            <div class="form-group">
               <label for="observacoes">Observações</label>
               <textarea
                 id="observacoes"
@@ -210,6 +200,10 @@
             <!-- PCMSO -->
             <div class="doc-section card-nested">
               <h3 class="doc-title">PCMSO</h3>
+              <div class="form-group">
+                <label for="pcmso-medico">Médico coordenador</label>
+                <input type="text" id="pcmso-medico" class="form-control" required placeholder="Nome do médico coordenador" />
+              </div>
               <div class="form-group form-group-inline">
                 <div style="flex: 2;">
                   <label for="pcmpdf">Arquivo PDF</label>
@@ -230,6 +224,10 @@
             <!-- LTCAT -->
             <div class="doc-section card-nested">
               <h3 class="doc-title">LTCAT</h3>
+              <div class="form-group">
+                <label for="ltcat-responsavel">Responsável técnico</label>
+                <input type="text" id="ltcat-responsavel" class="form-control" required placeholder="Nome do responsável técnico" />
+              </div>
               <div class="form-group form-group-inline">
                 <div style="flex: 2;">
                   <label for="ltcatpdf">Arquivo PDF</label>
@@ -250,6 +248,10 @@
             <!-- PGR -->
             <div class="doc-section card-nested">
               <h3 class="doc-title">PGR</h3>
+              <div class="form-group">
+                <label for="pgr-responsavel">Responsável técnico</label>
+                <input type="text" id="pgr-responsavel" class="form-control" required placeholder="Nome do responsável técnico" />
+              </div>
               <div class="form-group form-group-inline">
                 <div style="flex: 2;">
                   <label for="pgrpdf">Arquivo PDF</label>
