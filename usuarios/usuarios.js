@@ -152,7 +152,7 @@ async function listarUsuarios() {
                 </td>
                 <td data-label="Criado em">${dataCriacao}</td>
                 <td class="text-right">
-                    <button class="btn-action btn-delete" title="Excluir Usuário (desativado)" onclick="alert('Funcionalidade de exclusão requer permissões de API de gerenciamento de usuários do Supabase.')">
+                    <button class="btn-action btn-delete" title="Excluir Usuário" onclick="excluirUsuario('${user.id}', '${user.nome || user.email}')">
                         🗑️
                     </button>
                 </td>
@@ -163,5 +163,29 @@ async function listarUsuarios() {
     } catch (err) {
         console.error("Erro ao listar usuários:", err);
         tbody.innerHTML = "<tr><td colspan='5' class='text-center error'>Erro ao carregar usuários.</td></tr>";
+    }
+}
+
+/**
+ * Exclui um usuário chamando a função RPC no Supabase.
+ */
+async function excluirUsuario(userId, userName) {
+    if (!confirm(`Tem certeza que deseja excluir permanentemente o usuário "${userName}"? Esta ação não pode ser desfeita.`)) {
+        return;
+    }
+
+    try {
+        const { error } = await supabase.rpc('delete_user_by_admin', {
+            target_user_id: userId
+        });
+
+        if (error) throw error;
+
+        alert("Usuário excluído com sucesso!");
+        listarUsuarios(); // Atualiza a lista
+
+    } catch (err) {
+        console.error("Erro ao excluir usuário:", err);
+        alert("Erro ao excluir usuário: " + (err.message || "Erro desconhecido"));
     }
 }
