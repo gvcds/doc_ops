@@ -148,16 +148,49 @@ async function carregarEmpresaParaEdicao(id, session) {
 
     // --- BLOQUEIO PARA NÃO-ADMINS ---
     if (session.perfil !== "admin") {
-        // Bloqueia campos gerais da empresa
+        // 1. Banner de Aviso
+        const form = document.getElementById("empresa-form");
+        const existingBanner = document.getElementById("readonly-banner");
+        if (!existingBanner) {
+            const banner = document.createElement("div");
+            banner.id = "readonly-banner";
+            banner.style.backgroundColor = "#fff3cd";
+            banner.style.color = "#856404";
+            banner.style.border = "1px solid #ffeeba";
+            banner.style.padding = "15px";
+            banner.style.marginBottom = "20px";
+            banner.style.borderRadius = "4px";
+            banner.style.fontWeight = "bold";
+            banner.style.textAlign = "center";
+            banner.innerHTML = "🔒 MODO LEITURA: Você não tem permissão para alterar os dados desta empresa.<br><small style='font-weight:normal'>Apenas a adição de documentos faltantes é permitida.</small>";
+            form.insertBefore(banner, form.firstChild);
+        }
+
+        // 2. Bloqueia campos gerais da empresa (com estilo visual)
         ["nomeEmpresa", "cnpj", "statusEmpresa", "esocial", "medicoCoordenador", "observacoes", "tipo", "parentCompanyId"]
             .forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.disabled = true;
+                if (el) {
+                    el.disabled = true;
+                    el.style.backgroundColor = "#e9ecef"; // Fundo cinza claro
+                    el.style.cursor = "not-allowed";
+                    el.title = "Edição restrita a administradores";
+                }
             });
 
-        // Bloqueia documentos que JÁ existem (impede edição/substituição)
-        // Se o documento não existe (undefined ou null), o campo permanece habilitado para adição.
-        
+        // 3. Altera botão de salvar
+        const btnSalvar = document.getElementById("btn-salvar");
+        if (btnSalvar) {
+            btnSalvar.textContent = "Salvar Novos Documentos";
+            // Se todos os documentos já existirem, desabilita o botão também (opcional, mas bom para UX)
+            if (docs.pcmso && docs.ltcat && docs.pgr) {
+                btnSalvar.disabled = true;
+                btnSalvar.textContent = "Todos documentos já cadastrados";
+                btnSalvar.title = "Não há ações disponíveis para seu perfil.";
+            }
+        }
+
+        // 4. Bloqueia documentos que JÁ existem
         if (docs.pcmso) {
             document.getElementById("pcmso-inicio").disabled = true;
             document.getElementById("pcmso-termino").disabled = true;
@@ -174,10 +207,9 @@ async function carregarEmpresaParaEdicao(id, session) {
             document.getElementById("pgrpdf").disabled = true;
         }
 
-        // Aviso visual
+        // Aviso no rodapé (feedback)
         const feedback = document.getElementById("empresa-feedback");
-        feedback.textContent = "Modo de visualização. Você pode apenas adicionar documentos faltantes.";
-        feedback.style.color = "blue";
+        feedback.textContent = ""; // Limpa anterior
     }
     // --------------------------------
 
