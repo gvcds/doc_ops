@@ -376,6 +376,39 @@ textarea.form-control {
   }
 }
 
+/* 
+  ============================
+  Responsividade Global
+  ============================
+*/
+@media (max-width: 768px) {
+  .form-group-inline {
+    grid-template-columns: 1fr;
+  }
+  
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Garante que tabelas não quebrem o layout */
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1rem;
+    border-radius: 0.5rem;
+  }
+
+  /* Ajustes finos de espaçamento em mobile */
+  .card {
+    padding: 1rem;
+  }
+
+  .page-title {
+    font-size: 1.15rem;
+  }
+}
+
 /*
   ============================
   Ajustes específicos do modo claro
