@@ -154,15 +154,15 @@ async function carregarEmpresaParaEdicao(id, session) {
         if (!existingBanner) {
             const banner = document.createElement("div");
             banner.id = "readonly-banner";
-            banner.style.backgroundColor = "#fff3cd";
-            banner.style.color = "#856404";
-            banner.style.border = "1px solid #ffeeba";
+            banner.style.backgroundColor = "#e2e3e5"; // Cinza
+            banner.style.color = "#383d41";
+            banner.style.border = "1px solid #d6d8db";
             banner.style.padding = "15px";
             banner.style.marginBottom = "20px";
             banner.style.borderRadius = "4px";
             banner.style.fontWeight = "bold";
             banner.style.textAlign = "center";
-            banner.innerHTML = "🔒 MODO LEITURA: Você não tem permissão para alterar os dados desta empresa.<br><small style='font-weight:normal'>Apenas a adição de documentos faltantes é permitida.</small>";
+            banner.innerHTML = "🔒 MODO LEITURA: Você não tem permissão para editar esta empresa.";
             form.insertBefore(banner, form.firstChild);
         }
 
@@ -174,49 +174,32 @@ async function carregarEmpresaParaEdicao(id, session) {
                     el.disabled = true;
                     el.style.backgroundColor = "#e9ecef"; // Fundo cinza claro
                     el.style.cursor = "not-allowed";
-                    el.title = "Edição restrita a administradores";
                 }
             });
 
-        // 3. Altera comportamento do botão de salvar
+        // 3. Bloqueia TOTALMENTE os campos de documentos (existentes ou novos)
+        // Impede qualquer upload ou alteração de data
+        const idsDocs = [
+            "pcmso-inicio", "pcmso-termino", "pcmpdf",
+            "ltcat-inicio", "ltcat-termino", "ltcatpdf",
+            "pgr-inicio", "pgr-termino", "pgrpdf"
+        ];
+        idsDocs.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                el.disabled = true;
+                el.style.backgroundColor = "#e9ecef";
+            }
+        });
+
+        // 4. Desabilita permanentemente o botão de salvar
         const btnSalvar = document.getElementById("btn-salvar");
         if (btnSalvar) {
-            btnSalvar.textContent = "Salvar Novos Documentos";
-            btnSalvar.disabled = true; // Bloqueado por padrão
-            btnSalvar.title = "Para salvar, adicione um documento faltante.";
-            btnSalvar.style.opacity = "0.6";
-
-            // Libera o botão APENAS se um arquivo for selecionado
-            const inputsArquivo = ["pcmpdf", "ltcatpdf", "pgrpdf"];
-            inputsArquivo.forEach(idFile => {
-                const fileInput = document.getElementById(idFile);
-                if (fileInput && !fileInput.disabled) {
-                    fileInput.addEventListener("change", function() {
-                        if (this.files && this.files.length > 0) {
-                            btnSalvar.disabled = false;
-                            btnSalvar.style.opacity = "1";
-                            btnSalvar.title = "Salvar alterações";
-                        }
-                    });
-                }
-            });
-        }
-
-        // 4. Bloqueia documentos que JÁ existem
-        if (docs.pcmso) {
-            document.getElementById("pcmso-inicio").disabled = true;
-            document.getElementById("pcmso-termino").disabled = true;
-            document.getElementById("pcmpdf").disabled = true;
-        }
-        if (docs.ltcat) {
-            document.getElementById("ltcat-inicio").disabled = true;
-            document.getElementById("ltcat-termino").disabled = true;
-            document.getElementById("ltcatpdf").disabled = true;
-        }
-        if (docs.pgr) {
-            document.getElementById("pgr-inicio").disabled = true;
-            document.getElementById("pgr-termino").disabled = true;
-            document.getElementById("pgrpdf").disabled = true;
+            btnSalvar.textContent = "Edição bloqueada";
+            btnSalvar.disabled = true;
+            btnSalvar.style.opacity = "0.5";
+            btnSalvar.style.cursor = "not-allowed";
+            btnSalvar.title = "Apenas administradores podem salvar alterações.";
         }
 
         // Aviso no rodapé (feedback)
