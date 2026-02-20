@@ -421,23 +421,21 @@ function criarBotoesDocumentos(empresa, session) {
             docGroup.appendChild(btnDel);
         }
     } else {
-        // 3. Botão de Adicionar (Apenas Admin)
-        if (session.perfil === "admin") {
-            const btnAdd = document.createElement("button");
-            btnAdd.type = "button";
-            btnAdd.className = "btn";
-            btnAdd.style.border = "1px dashed currentColor";
-            btnAdd.style.opacity = "0.7";
-            btnAdd.textContent = `+ ${tipo.toUpperCase()}`;
-            btnAdd.title = "Adicionar documento faltando";
-            
-            btnAdd.addEventListener("click", function(e) {
-                e.stopPropagation();
-                const params = new URLSearchParams({ id: empresa.id });
-                window.location.href = `../cadastro/index.html?${params.toString()}`;
-            });
-            docGroup.appendChild(btnAdd);
-        }
+        // 3. Botão de Adicionar (Disponível para todos que podem criar)
+        const btnAdd = document.createElement("button");
+        btnAdd.type = "button";
+        btnAdd.className = "btn";
+        btnAdd.style.border = "1px dashed currentColor";
+        btnAdd.style.opacity = "0.7";
+        btnAdd.textContent = `+ ${tipo.toUpperCase()}`;
+        btnAdd.title = "Adicionar documento faltando";
+        
+        btnAdd.addEventListener("click", function(e) {
+            e.stopPropagation();
+            const params = new URLSearchParams({ id: empresa.id });
+            window.location.href = `../cadastro/index.html?${params.toString()}`;
+        });
+        docGroup.appendChild(btnAdd);
     }
     
     if (docGroup.children.length > 0) {

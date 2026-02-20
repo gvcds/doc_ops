@@ -104,44 +104,82 @@ async function carregarEmpresaParaEdicao(id, session) {
     // Função auxiliar para preencher arquivo e datas
     const fillDoc = (tipo, prefixo) => {
         const docObj = docs[tipo];
-        const elInfo = document.getElementById(`${prefixo}pdf-info`);
+        const idInfo = `${prefixo}pdf-info`; // ex: pcmpdf-info
+        const elInfo = document.getElementById(idInfo);
         
+        // Mapeamento de IDs de data (correção para PCMSO que tem prefixo diferente no HTML)
+        let idInicio = `${prefixo}-inicio`;
+        let idTermino = `${prefixo}-termino`;
+        
+        if (tipo === "pcmso") {
+            idInicio = "pcmso-inicio";
+            idTermino = "pcmso-termino";
+        }
+
         // Datas: usa a data específica do documento. 
-        // Se não existir, tenta usar a data global antiga da empresa como fallback.
+        // Fallback para data global apenas se não houver data específica.
         const dataInicio = docObj?.dataInicio || empresa.dataInicio || "";
         const dataTermino = docObj?.dataTermino || empresa.dataTermino || "";
 
-        document.getElementById(`${prefixo}-inicio`).value = dataInicio;
-        document.getElementById(`${prefixo}-termino`).value = dataTermino;
+        const elInicio = document.getElementById(idInicio);
+        const elTermino = document.getElementById(idTermino);
+
+        if (elInicio) elInicio.value = dataInicio;
+        if (elTermino) elTermino.value = dataTermino;
 
         if (docObj && docObj.nomeArquivo) {
-            elInfo.innerHTML = `<span style="color: green; font-weight: bold;">✓ Arquivo atual: ${docObj.nomeArquivo}</span>`;
+            if (elInfo) {
+                elInfo.innerHTML = `
+                    <div style="background-color: #e8f5e9; padding: 8px; border-radius: 4px; border: 1px solid #c8e6c9; color: #2e7d32; margin-top: 5px;">
+                        <strong>✓ Documento Cadastrado:</strong> ${docObj.nomeArquivo}<br>
+                        <small>Para manter este arquivo, deixe o campo de seleção vazio.</small>
+                    </div>`;
+            }
         } else {
-            elInfo.textContent = "";
+            if (elInfo) elInfo.textContent = "";
         }
     };
 
-    fillDoc("pcmso", "pcm"); // prefixo no HTML é 'pcmpdf' -> mas inputs de data são 'pcmso-inicio'
-    // Ajuste: no HTML criei 'pcmso-inicio', mas input file é 'pcmpdf'. 
-    // Vou ajustar a chamada para bater com os IDs criados no HTML.
+    fillDoc("pcmso", "pcm"); 
+    fillDoc("ltcat", "ltcat");
+    fillDoc("pgr", "pgr");
+    
+    // Remover código redundante manual abaixo, pois fillDoc já cuida disso agora.
 
-    // PCMSO
-    const pcmDoc = docs.pcmso;
-    document.getElementById("pcmso-inicio").value = pcmDoc?.dataInicio || empresa.dataInicio || "";
-    document.getElementById("pcmso-termino").value = pcmDoc?.dataTermino || empresa.dataTermino || "";
-    if (pcmDoc?.nomeArquivo) document.getElementById("pcmpdf-info").innerHTML = `<b>✓ ${pcmDoc.nomeArquivo}</b>`;
+    // --- BLOQUEIO PARA NÃO-ADMINS ---
+    if (session.perfil !== "admin") {
+        // Bloqueia campos gerais da empresa
+        ["nomeEmpresa", "cnpj", "statusEmpresa", "esocial", "medicoCoordenador", "observacoes", "tipo", "parentCompanyId"]
+            .forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = true;
+            });
 
-    // LTCAT
-    const ltcatDoc = docs.ltcat;
-    document.getElementById("ltcat-inicio").value = ltcatDoc?.dataInicio || empresa.dataInicio || "";
-    document.getElementById("ltcat-termino").value = ltcatDoc?.dataTermino || empresa.dataTermino || "";
-    if (ltcatDoc?.nomeArquivo) document.getElementById("ltcatpdf-info").innerHTML = `<b>✓ ${ltcatDoc.nomeArquivo}</b>`;
+        // Bloqueia documentos que JÁ existem (impede edição/substituição)
+        // Se o documento não existe (undefined ou null), o campo permanece habilitado para adição.
+        
+        if (docs.pcmso) {
+            document.getElementById("pcmso-inicio").disabled = true;
+            document.getElementById("pcmso-termino").disabled = true;
+            document.getElementById("pcmpdf").disabled = true;
+        }
+        if (docs.ltcat) {
+            document.getElementById("ltcat-inicio").disabled = true;
+            document.getElementById("ltcat-termino").disabled = true;
+            document.getElementById("ltcatpdf").disabled = true;
+        }
+        if (docs.pgr) {
+            document.getElementById("pgr-inicio").disabled = true;
+            document.getElementById("pgr-termino").disabled = true;
+            document.getElementById("pgrpdf").disabled = true;
+        }
 
-    // PGR
-    const pgrDoc = docs.pgr;
-    document.getElementById("pgr-inicio").value = pgrDoc?.dataInicio || empresa.dataInicio || "";
-    document.getElementById("pgr-termino").value = pgrDoc?.dataTermino || empresa.dataTermino || "";
-    if (pgrDoc?.nomeArquivo) document.getElementById("pgrpdf-info").innerHTML = `<b>✓ ${pgrDoc.nomeArquivo}</b>`;
+        // Aviso visual
+        const feedback = document.getElementById("empresa-feedback");
+        feedback.textContent = "Modo de visualização. Você pode apenas adicionar documentos faltantes.";
+        feedback.style.color = "blue";
+    }
+    // --------------------------------
 
   } catch (err) {
     console.error("Erro ao carregar edição:", err);
@@ -243,6 +281,38 @@ function registrarEnvioFormulario(session) {
     if (idExistente) {
       empresaExistente = await getCompanyById(idExistente);
     }
+
+    // --- VALIDAÇÃO DE PERMISSÃO (NON-ADMIN) ---
+    if (session.perfil !== "admin" && idExistente && empresaExistente) {
+        // Verifica se tentou mudar dados básicos
+        if (nome !== empresaExistente.nome || cnpj !== empresaExistente.cnpj || statusEmpresa !== empresaExistente.statusEmpresa) {
+            feedback.textContent = "Apenas administradores podem alterar dados da empresa.";
+            feedback.classList.add("error");
+            btnSalvar.disabled = false;
+            return;
+        }
+        
+        // Verifica se tentou substituir documento existente
+        let docsOriginais = empresaExistente.documentos || {};
+        if (typeof docsOriginais === 'string') { try{docsOriginais=JSON.parse(docsOriginais)}catch(e){} }
+        
+        if (docsOriginais.pcmso && arquivos.pcmso) {
+            feedback.textContent = "Você não tem permissão para substituir o PCMSO existente.";
+            feedback.classList.add("error");
+            btnSalvar.disabled = false; return;
+        }
+        if (docsOriginais.ltcat && arquivos.ltcat) {
+            feedback.textContent = "Você não tem permissão para substituir o LTCAT existente.";
+            feedback.classList.add("error");
+            btnSalvar.disabled = false; return;
+        }
+        if (docsOriginais.pgr && arquivos.pgr) {
+            feedback.textContent = "Você não tem permissão para substituir o PGR existente.";
+            feedback.classList.add("error");
+            btnSalvar.disabled = false; return;
+        }
+    }
+    // ------------------------------------------
 
     // Regra: "Não permitir cadastro sem os 3 arquivos" (apenas se for nova empresa)
     // Se for edição, pode salvar sem re-enviar arquivo, DESDE QUE as datas estejam preenchidas.
