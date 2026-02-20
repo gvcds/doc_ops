@@ -362,6 +362,42 @@ function registrarEnvioFormulario(session) {
       }
     }
 
+    // --- BLOQUEIO RIGÍDO DE DADOS PARA NÃO-ADMINS ---
+    // Se não for admin, ignoramos qualquer input de texto alterado e usamos os dados originais do banco.
+    if (session.perfil !== "admin" && idExistente && empresaExistente) {
+        // Força reversão para dados originais
+        /* 
+           Nota: As variáveis 'nome', 'cnpj', etc. são const e não podem ser reatribuídas.
+           Portanto, vamos criar um objeto 'dadosFinais' que será usado na montagem do payload,
+           em vez de usar as variáveis diretamente.
+        */
+    }
+    
+    // Objeto com os dados que serão salvos
+    let dadosSalvar = {
+        nome,
+        cnpj,
+        statusEmpresa,
+        esocial: esocialValue === "sim",
+        medicoCoordenador,
+        observacoes,
+        tipo,
+        parentCompanyId
+    };
+
+    if (session.perfil !== "admin" && idExistente && empresaExistente) {
+        // Sobrescreve com dados originais para garantir que nada foi editado
+        dadosSalvar.nome = empresaExistente.nome;
+        dadosSalvar.cnpj = empresaExistente.cnpj;
+        dadosSalvar.statusEmpresa = empresaExistente.statusEmpresa;
+        dadosSalvar.esocial = empresaExistente.esocial;
+        dadosSalvar.medicoCoordenador = empresaExistente.medicoCoordenador;
+        dadosSalvar.observacoes = empresaExistente.observacoes;
+        dadosSalvar.tipo = empresaExistente.tipo;
+        dadosSalvar.parentCompanyId = empresaExistente.parentCompanyId;
+    }
+    // ------------------------------------------------
+
     // Processar upload de arquivos e salvar dados
     const documentosFinais = empresaExistente?.documentos || {};
 
@@ -370,7 +406,7 @@ function registrarEnvioFormulario(session) {
       const updateDocData = async (tipo, file, inicio, termino) => {
           // Se enviou arquivo novo, faz upload
           if (file) {
-             const url = await uploadFileToStorage(file, nome, tipo.toUpperCase());
+             const url = await uploadFileToStorage(file, dadosSalvar.nome, tipo.toUpperCase());
              documentosFinais[tipo] = {
                  nomeArquivo: file.name,
                  dataUploadISO: new Date().toISOString(),
@@ -380,10 +416,15 @@ function registrarEnvioFormulario(session) {
                  dataTermino: termino
              };
           } else if (documentosFinais[tipo]) {
-             // Se não enviou arquivo mas documento existe, atualiza apenas as datas
-             documentosFinais[tipo].dataInicio = inicio;
-             documentosFinais[tipo].dataTermino = termino;
-             documentosFinais[tipo].ano = inicio.slice(0, 4);
+             // Documento já existe.
+             // Se for admin, atualiza datas.
+             // Se NÃO for admin, mantém datas originais (impede edição).
+             if (session.perfil === "admin") {
+                 documentosFinais[tipo].dataInicio = inicio;
+                 documentosFinais[tipo].dataTermino = termino;
+                 documentosFinais[tipo].ano = inicio.slice(0, 4);
+             }
+             // Se não for admin, não faz nada = mantém o objeto como estava no banco.
           }
       };
 
@@ -392,26 +433,15 @@ function registrarEnvioFormulario(session) {
       await updateDocData("pgr", arquivos.pgr, pgrInicio, pgrTermino);
 
       // Preparar objeto para salvar
-      // Nota: Mantemos dataInicio/dataTermino na raiz da empresa apenas como referência geral (ex: menor dataInicio e maior dataTermino)
-      // ou deixamos vazio se não for mais usado.
-      // Para compatibilidade, vamos salvar a MAIOR data de término como referência de "contrato ativo".
-      
       const datasTermino = [pcmTermino, ltcatTermino, pgrTermino].filter(d => d).sort();
       const maiorTermino = datasTermino.length ? datasTermino[datasTermino.length - 1] : null;
       const datasInicio = [pcmInicio, ltcatInicio, pgrInicio].filter(d => d).sort();
       const menorInicio = datasInicio.length ? datasInicio[0] : null;
 
       const payload = {
-        tipo,
-        parentCompanyId,
-        nome,
-        cnpj,
-        statusEmpresa,
-        dataInicio: menorInicio, // Referência
-        dataTermino: maiorTermino, // Referência
-        esocial: esocialValue === "sim",
-        medicoCoordenador,
-        observacoes,
+        ...dadosSalvar, // Usa os dados seguros
+        dataInicio: menorInicio, 
+        dataTermino: maiorTermino,
         documentos: documentosFinais,
       };
 
