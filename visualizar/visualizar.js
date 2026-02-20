@@ -7,6 +7,12 @@
   - Uso de calcularStatusGeralEmpresa para status consolidado
 */
 
+// Variáveis de estado para paginação e filtro
+let paginaAtual = 1;
+const itensPorPagina = 10;
+let arvoreOriginal = [];
+let arvoreFiltrada = [];
+
 document.addEventListener("DOMContentLoaded", function () {
   const session = requireAuth();
   if (!session) return;
@@ -15,60 +21,176 @@ document.addEventListener("DOMContentLoaded", function () {
   registerLogoutButton();
 
   montarListaEmpresas(session);
+  configurarFiltros(session);
   configurarModalPdf();
 });
 
 /**
- * Monta a listagem de empresas principais, com suas filiais vinculadas.
+ * Configura o listener do campo de pesquisa.
+ */
+function configurarFiltros(session) {
+  const searchInput = document.getElementById("search-input");
+  if (!searchInput) return;
+
+  searchInput.addEventListener("input", function (e) {
+    const termo = e.target.value.toLowerCase().trim();
+    aplicarFiltro(termo, session);
+  });
+}
+
+/**
+ * Aplica o filtro na lista original e atualiza a view.
+ */
+function aplicarFiltro(termo, session) {
+  if (!termo) {
+    arvoreFiltrada = [...arvoreOriginal];
+  } else {
+    // Filtra empresas (matriz ou filiais) que correspondem ao termo
+    arvoreFiltrada = arvoreOriginal.filter(grupo => {
+      const matrizMatch = (grupo.principal.nome || "").toLowerCase().includes(termo) ||
+                          (grupo.principal.cnpj || "").replace(/\D/g, "").includes(termo);
+      
+      // Verifica se alguma filial corresponde
+      const filiaisMatch = (grupo.filiais || []).some(filial => 
+        (filial.nome || "").toLowerCase().includes(termo) ||
+        (filial.cnpj || "").replace(/\D/g, "").includes(termo)
+      );
+
+      return matrizMatch || filiaisMatch;
+    });
+  }
+
+  paginaAtual = 1; // Reseta para a primeira página
+  renderizarPagina(session);
+}
+
+/**
+ * Busca a árvore de empresas e inicializa a listagem.
  */
 async function montarListaEmpresas(session) {
   const container = document.getElementById("lista-empresas");
-  container.innerHTML = "<p class='text-muted'>Carregando empresas...</p>"; // Feedback de carregamento
+  container.innerHTML = "<p class='text-muted'>Carregando empresas...</p>";
 
   try {
     const arvore = await getCompanyTree();
-
-    container.innerHTML = ""; // Limpa o feedback de carregamento
-
+    
     if (!arvore || !arvore.length) {
-      const empty = document.createElement("p");
-      empty.className = "text-muted";
-      empty.textContent =
-        "Nenhuma empresa cadastrada ainda. Acesse 'Cadastrar empresa' para iniciar.";
-      container.appendChild(empty);
+      arvoreOriginal = [];
+      arvoreFiltrada = [];
+      renderizarPagina(session); // Renderiza estado vazio
       return;
     }
 
-    arvore.forEach((grupo) => {
-      const { principal, filiais } = grupo;
+    // Armazena dados globais
+    arvoreOriginal = arvore;
+    arvoreFiltrada = [...arvore];
 
-      // Wrapper agrupa a matriz e o bloco de filiais logo abaixo.
-      const grupoWrapper = document.createElement("div");
-      grupoWrapper.className = "empresa-grupo";
+    renderizarPagina(session);
 
-      // Container que receberá os cards das filiais (inicia recolhido).
-      const filiaisWrapper = document.createElement("div");
-      filiaisWrapper.className = "empresa-filiais-list";
-
-      // Card da empresa principal (matriz)
-      const cardMatriz = criarCardEmpresa(principal, filiais, filiaisWrapper, session);
-
-      // Cards de filiais (um card por filial, levemente recuados)
-      if (filiais && filiais.length) {
-        filiais.forEach((filial) => {
-          const cardFilial = criarCardFilial(filial, session);
-          filiaisWrapper.appendChild(cardFilial);
-        });
-      }
-
-      grupoWrapper.appendChild(cardMatriz);
-      grupoWrapper.appendChild(filiaisWrapper);
-      container.appendChild(grupoWrapper);
-    });
   } catch (error) {
     console.error("Erro ao carregar empresas:", error);
     container.innerHTML = "<p class='error'>Erro ao carregar empresas. Verifique o console ou sua conexão.</p>";
   }
+}
+
+/**
+ * Renderiza os itens da página atual e atualiza controles de paginação.
+ */
+function renderizarPagina(session) {
+  const container = document.getElementById("lista-empresas");
+  container.innerHTML = "";
+
+  if (arvoreFiltrada.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "text-muted";
+    empty.textContent = "Nenhuma empresa encontrada.";
+    container.appendChild(empty);
+    atualizarControlesPaginacao(0);
+    return;
+  }
+
+  // Paginação
+  const totalItens = arvoreFiltrada.length;
+  const totalPaginas = Math.ceil(totalItens / itensPorPagina);
+
+  // Garante que a página atual é válida
+  if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+  if (paginaAtual < 1) paginaAtual = 1;
+
+  const inicio = (paginaAtual - 1) * itensPorPagina;
+  const fim = inicio + itensPorPagina;
+  const itensPagina = arvoreFiltrada.slice(inicio, fim);
+
+  // Renderiza itens
+  itensPagina.forEach((grupo) => {
+    const { principal, filiais } = grupo;
+
+    const grupoWrapper = document.createElement("div");
+    grupoWrapper.className = "empresa-grupo";
+
+    const filiaisWrapper = document.createElement("div");
+    filiaisWrapper.className = "empresa-filiais-list";
+
+    const cardMatriz = criarCardEmpresa(principal, filiais, filiaisWrapper, session);
+
+    if (filiais && filiais.length) {
+      filiais.forEach((filial) => {
+        const cardFilial = criarCardFilial(filial, session);
+        filiaisWrapper.appendChild(cardFilial);
+      });
+    }
+
+    grupoWrapper.appendChild(cardMatriz);
+    grupoWrapper.appendChild(filiaisWrapper);
+    container.appendChild(grupoWrapper);
+  });
+
+  atualizarControlesPaginacao(totalPaginas);
+}
+
+/**
+ * Cria os botões de paginação.
+ */
+function atualizarControlesPaginacao(totalPaginas) {
+  const paginationContainer = document.getElementById("pagination-controls");
+  if (!paginationContainer) return;
+
+  paginationContainer.innerHTML = "";
+
+  if (totalPaginas <= 1) return;
+
+  // Botão Anterior
+  const btnPrev = document.createElement("button");
+  btnPrev.className = "btn btn-secondary btn-sm";
+  btnPrev.textContent = "« Anterior";
+  btnPrev.disabled = paginaAtual === 1;
+  btnPrev.onclick = () => {
+    if (paginaAtual > 1) {
+      paginaAtual--;
+      renderizarPagina(requireAuth()); // Re-renderiza com sessão
+    }
+  };
+  paginationContainer.appendChild(btnPrev);
+
+  // Indicador de página
+  const indicador = document.createElement("span");
+  indicador.className = "text-muted";
+  indicador.style.margin = "0 10px";
+  indicador.textContent = `Página ${paginaAtual} de ${totalPaginas}`;
+  paginationContainer.appendChild(indicador);
+
+  // Botão Próximo
+  const btnNext = document.createElement("button");
+  btnNext.className = "btn btn-secondary btn-sm";
+  btnNext.textContent = "Próximo »";
+  btnNext.disabled = paginaAtual === totalPaginas;
+  btnNext.onclick = () => {
+    if (paginaAtual < totalPaginas) {
+      paginaAtual++;
+      renderizarPagina(requireAuth());
+    }
+  };
+  paginationContainer.appendChild(btnNext);
 }
 
 /**
