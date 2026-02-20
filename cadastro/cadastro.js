@@ -293,6 +293,52 @@ function registrarEnvioFormulario(session) {
       return;
     }
 
+    // --- VERIFICAÇÃO DE DUPLICIDADE (CNPJ ou NOME) ---
+    // Apenas para novos cadastros (!idExistente)
+    if (!idExistente) {
+        try {
+            // Verifica CNPJ
+            const { data: cnpjExists, error: errCnpj } = await supabase
+                .from('empresas')
+                .select('id')
+                .eq('cnpj', cnpj)
+                .maybeSingle();
+            
+            if (cnpjExists) {
+                feedback.textContent = "Já existe uma empresa cadastrada com este CNPJ.";
+                feedback.classList.add("error");
+                btnSalvar.disabled = false;
+                btnSalvar.textContent = "Salvar cadastro"; // Restaura texto
+                return;
+            }
+
+            // Verifica Nome (Case insensitive se possível, ou exato)
+            // Supabase 'ilike' é case-insensitive.
+            const { data: nomeExists, error: errNome } = await supabase
+                .from('empresas')
+                .select('id')
+                .ilike('nome', nome) // Busca case-insensitive
+                .maybeSingle();
+
+            if (nomeExists) {
+                feedback.textContent = "Já existe uma empresa cadastrada com este Nome.";
+                feedback.classList.add("error");
+                btnSalvar.disabled = false;
+                btnSalvar.textContent = "Salvar cadastro"; // Restaura texto
+                return;
+            }
+
+        } catch (checkErr) {
+            console.error("Erro ao verificar duplicidade:", checkErr);
+            // Opcional: Bloquear ou deixar passar com aviso? Melhor bloquear por segurança.
+            feedback.textContent = "Erro ao validar duplicidade. Tente novamente.";
+            feedback.classList.add("error");
+            btnSalvar.disabled = false;
+            return;
+        }
+    }
+    // --------------------------------------------------
+
     // Processamento de arquivos
     const pcmsInput = document.getElementById("pcmpdf");
     const ltcatInput = document.getElementById("ltcatpdf");
