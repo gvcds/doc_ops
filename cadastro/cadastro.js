@@ -337,12 +337,18 @@ function registrarEnvioFormulario(session) {
             }
             
             if (listCnpj && listCnpj.length > 0) {
-                console.warn("Duplicidade de CNPJ encontrada:", listCnpj);
-                feedback.textContent = `Já existe uma empresa cadastrada com este CNPJ (${listCnpj[0].cnpj}).`;
-                feedback.classList.add("error");
-                btnSalvar.disabled = false;
-                btnSalvar.textContent = "Salvar cadastro";
-                return;
+                // Se for filial, permite repetir o CNPJ APENAS se ele pertencer à empresa pai (parentCompanyId)
+                const isParent = listCnpj[0].id === parentCompanyId;
+                
+                if (tipo !== "filial" || !isParent) {
+                    console.warn("Duplicidade de CNPJ encontrada:", listCnpj);
+                    feedback.textContent = `Já existe uma empresa cadastrada com este CNPJ (${listCnpj[0].cnpj}).`;
+                    feedback.classList.add("error");
+                    btnSalvar.disabled = false;
+                    btnSalvar.textContent = "Salvar cadastro";
+                    return;
+                }
+                console.log("CNPJ repetido permitido: Filial utilizando o mesmo CNPJ da matriz.");
             }
 
             // 2. Verifica Nome (Case insensitive)
@@ -439,32 +445,6 @@ function registrarEnvioFormulario(session) {
         return false;
     };
 
-    // Valida datas e responsáveis apenas para documentos que vão existir
-    if (checkDocExists("pcmso", arquivos.pcmso)) {
-        if (!pcmInicio || !pcmTermino || !pcmsoMedico) {
-            feedback.textContent = "Preencha as datas de vigência e o médico coordenador do PCMSO.";
-            feedback.classList.add("error");
-            btnSalvar.disabled = false;
-            return;
-        }
-    }
-    if (checkDocExists("ltcat", arquivos.ltcat)) {
-        if (!ltcatInicio || !ltcatTermino || !ltcatResponsavel) {
-            feedback.textContent = "Preencha as datas de vigência e o responsável técnico do LTCAT.";
-            feedback.classList.add("error");
-            btnSalvar.disabled = false;
-            return;
-        }
-    }
-    if (checkDocExists("pgr", arquivos.pgr)) {
-        if (!pgrInicio || !pgrTermino || !pgrResponsavel) {
-            feedback.textContent = "Preencha as datas de vigência e o responsável técnico do PGR.";
-            feedback.classList.add("error");
-            btnSalvar.disabled = false;
-            return;
-        }
-    }
-    
     // Se for nova empresa, exige ao menos um dos 3 documentos
     if (!idExistente) {
       if (!arquivos.pcmso && !arquivos.ltcat && !arquivos.pgr) {
