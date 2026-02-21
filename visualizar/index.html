@@ -131,6 +131,23 @@
                 </div>
               </div>
             </div>
+
+            <!-- Controles de Pesquisa e Paginação -->
+            <div class="filter-controls" style="padding: 0 20px 20px 20px; display: flex; flex-wrap: wrap; gap: 15px; justify-content: space-between; align-items: center;">
+              <div style="flex: 1; min-width: 250px;">
+                <input 
+                  type="text" 
+                  id="search-input" 
+                  class="form-control" 
+                  placeholder="Pesquisar por nome ou CNPJ..." 
+                  aria-label="Pesquisar empresas"
+                >
+              </div>
+              <div id="pagination-controls" style="display: flex; gap: 5px; align-items: center;">
+                <!-- Botões de paginação serão inseridos via JS -->
+              </div>
+            </div>
+
             <div id="lista-empresas" class="empresas-list">
               <!-- Blocos de empresas serão inseridos via JavaScript -->
             </div>

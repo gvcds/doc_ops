@@ -103,7 +103,6 @@ async function carregarEmpresaParaEdicao(id, session) {
     document.getElementById("cnpj").value = empresa.cnpj || "";
     document.getElementById("statusEmpresa").value = empresa.statusEmpresa || "Ativa";
     document.getElementById("esocial").value = empresa.esocial ? "sim" : "nao";
-    document.getElementById("medicoCoordenador").value = empresa.medicoCoordenador || "";
     document.getElementById("observacoes").value = empresa.observacoes || "";
 
     document.getElementById("tipo").value = empresa.tipo || "principal";
@@ -118,44 +117,113 @@ async function carregarEmpresaParaEdicao(id, session) {
     // Função auxiliar para preencher arquivo e datas
     const fillDoc = (tipo, prefixo) => {
         const docObj = docs[tipo];
-        const elInfo = document.getElementById(`${prefixo}pdf-info`);
+        const idInfo = `${prefixo}pdf-info`; // ex: pcmpdf-info
+        const elInfo = document.getElementById(idInfo);
         
-        // Datas: usa a data específica do documento. 
-        // Se não existir, tenta usar a data global antiga da empresa como fallback.
+        // Mapeamento de IDs de data (correção para PCMSO que tem prefixo diferente no HTML)
+        let idInicio = `${prefixo}-inicio`;
+        let idTermino = `${prefixo}-termino`;
+        let idResponsavel = `${prefixo}-responsavel`;
+        
+        if (tipo === "pcmso") {
+            idInicio = "pcmso-inicio";
+            idTermino = "pcmso-termino";
+            idResponsavel = "pcmso-medico";
+        }
+
+        // Datas e Responsável: usa a data/nome específica do documento. 
         const dataInicio = docObj?.dataInicio || empresa.dataInicio || "";
         const dataTermino = docObj?.dataTermino || empresa.dataTermino || "";
+        const responsavel = docObj?.responsavel || (tipo === "pcmso" ? empresa.medicoCoordenador : "") || "";
 
-        document.getElementById(`${prefixo}-inicio`).value = dataInicio;
-        document.getElementById(`${prefixo}-termino`).value = dataTermino;
+        const elInicio = document.getElementById(idInicio);
+        const elTermino = document.getElementById(idTermino);
+        const elResponsavel = document.getElementById(idResponsavel);
+
+        if (elInicio) elInicio.value = dataInicio;
+        if (elTermino) elTermino.value = dataTermino;
+        if (elResponsavel) elResponsavel.value = responsavel;
 
         if (docObj && docObj.nomeArquivo) {
-            elInfo.innerHTML = `<span style="color: green; font-weight: bold;">✓ Arquivo atual: ${docObj.nomeArquivo}</span>`;
+            if (elInfo) {
+                elInfo.innerHTML = `
+                    <div style="background-color: #e8f5e9; padding: 8px; border-radius: 4px; border: 1px solid #c8e6c9; color: #2e7d32; margin-top: 5px;">
+                        <strong>✓ Documento Cadastrado:</strong> ${docObj.nomeArquivo}<br>
+                        <small>Para manter este arquivo, deixe o campo de seleção vazio.</small>
+                    </div>`;
+            }
         } else {
-            elInfo.textContent = "";
+            if (elInfo) elInfo.textContent = "";
         }
     };
 
-    fillDoc("pcmso", "pcm"); // prefixo no HTML é 'pcmpdf' -> mas inputs de data são 'pcmso-inicio'
-    // Ajuste: no HTML criei 'pcmso-inicio', mas input file é 'pcmpdf'. 
-    // Vou ajustar a chamada para bater com os IDs criados no HTML.
+    fillDoc("pcmso", "pcm"); 
+    fillDoc("ltcat", "ltcat");
+    fillDoc("pgr", "pgr");
+    
+    // Remover código redundante manual abaixo, pois fillDoc já cuida disso agora.
 
-    // PCMSO
-    const pcmDoc = docs.pcmso;
-    document.getElementById("pcmso-inicio").value = pcmDoc?.dataInicio || empresa.dataInicio || "";
-    document.getElementById("pcmso-termino").value = pcmDoc?.dataTermino || empresa.dataTermino || "";
-    if (pcmDoc?.nomeArquivo) document.getElementById("pcmpdf-info").innerHTML = `<b>✓ ${pcmDoc.nomeArquivo}</b>`;
+    // --- BLOQUEIO PARA NÃO-ADMINS ---
+    if (session.perfil !== "admin") {
+        // 1. Banner de Aviso
+        const form = document.getElementById("empresa-form");
+        const existingBanner = document.getElementById("readonly-banner");
+        if (!existingBanner) {
+            const banner = document.createElement("div");
+            banner.id = "readonly-banner";
+            banner.style.backgroundColor = "#e2e3e5"; // Cinza
+            banner.style.color = "#383d41";
+            banner.style.border = "1px solid #d6d8db";
+            banner.style.padding = "15px";
+            banner.style.marginBottom = "20px";
+            banner.style.borderRadius = "4px";
+            banner.style.fontWeight = "bold";
+            banner.style.textAlign = "center";
+            banner.innerHTML = "🔒 MODO LEITURA: Você não tem permissão para editar esta empresa.";
+            form.insertBefore(banner, form.firstChild);
+        }
 
-    // LTCAT
-    const ltcatDoc = docs.ltcat;
-    document.getElementById("ltcat-inicio").value = ltcatDoc?.dataInicio || empresa.dataInicio || "";
-    document.getElementById("ltcat-termino").value = ltcatDoc?.dataTermino || empresa.dataTermino || "";
-    if (ltcatDoc?.nomeArquivo) document.getElementById("ltcatpdf-info").innerHTML = `<b>✓ ${ltcatDoc.nomeArquivo}</b>`;
+        // 2. Bloqueia campos gerais da empresa (com estilo visual)
+        ["nomeEmpresa", "cnpj", "statusEmpresa", "esocial", "observacoes", "tipo", "parentCompanyId"]
+            .forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.disabled = true;
+                    el.style.backgroundColor = "#e9ecef"; // Fundo cinza claro
+                    el.style.cursor = "not-allowed";
+                }
+            });
 
-    // PGR
-    const pgrDoc = docs.pgr;
-    document.getElementById("pgr-inicio").value = pgrDoc?.dataInicio || empresa.dataInicio || "";
-    document.getElementById("pgr-termino").value = pgrDoc?.dataTermino || empresa.dataTermino || "";
-    if (pgrDoc?.nomeArquivo) document.getElementById("pgrpdf-info").innerHTML = `<b>✓ ${pgrDoc.nomeArquivo}</b>`;
+        // 3. Bloqueia TOTALMENTE os campos de documentos (existentes ou novos)
+        // Impede qualquer upload ou alteração de data
+        const idsDocs = [
+            "pcmso-inicio", "pcmso-termino", "pcmpdf", "pcmso-medico",
+            "ltcat-inicio", "ltcat-termino", "ltcatpdf", "ltcat-responsavel",
+            "pgr-inicio", "pgr-termino", "pgrpdf", "pgr-responsavel"
+        ];
+        idsDocs.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                el.disabled = true;
+                el.style.backgroundColor = "#e9ecef";
+            }
+        });
+
+        // 4. Desabilita permanentemente o botão de salvar
+        const btnSalvar = document.getElementById("btn-salvar");
+        if (btnSalvar) {
+            btnSalvar.textContent = "Edição bloqueada";
+            btnSalvar.disabled = true;
+            btnSalvar.style.opacity = "0.5";
+            btnSalvar.style.cursor = "not-allowed";
+            btnSalvar.title = "Apenas administradores podem salvar alterações.";
+        }
+
+        // Aviso no rodapé (feedback)
+        const feedback = document.getElementById("empresa-feedback");
+        feedback.textContent = ""; // Limpa anterior
+    }
+    // --------------------------------
 
   } catch (err) {
     console.error("Erro ao carregar edição:", err);
@@ -214,8 +282,12 @@ function registrarEnvioFormulario(session) {
     const cnpj = document.getElementById("cnpj").value.trim();
     const statusEmpresa = document.getElementById("statusEmpresa").value;
     const esocialValue = document.getElementById("esocial").value;
-    const medicoCoordenador = document.getElementById("medicoCoordenador").value.trim();
     const observacoes = document.getElementById("observacoes").value.trim();
+
+    // Captura nomes dos responsáveis por documento
+    const pcmsoMedico = document.getElementById("pcmso-medico").value.trim();
+    const ltcatResponsavel = document.getElementById("ltcat-responsavel").value.trim();
+    const pgrResponsavel = document.getElementById("pgr-responsavel").value.trim();
 
     // Captura datas individuais
     const pcmInicio = document.getElementById("pcmso-inicio").value;
@@ -228,7 +300,7 @@ function registrarEnvioFormulario(session) {
     const pgrTermino = document.getElementById("pgr-termino").value;
 
     // Validações básicas (apenas campos obrigatórios globais)
-    if (!nome || !cnpj || !medicoCoordenador) {
+    if (!nome || !cnpj) {
       feedback.textContent = "Preencha os campos de identificação da empresa.";
       feedback.classList.add("error");
       btnSalvar.disabled = false;
@@ -241,6 +313,71 @@ function registrarEnvioFormulario(session) {
       btnSalvar.disabled = false;
       return;
     }
+
+    // --- VERIFICAÇÃO DE DUPLICIDADE (CNPJ ou NOME) ---
+    // Apenas para novos cadastros (!idExistente)
+    if (!idExistente) {
+        try {
+            console.log("Iniciando verificação de duplicidade...");
+            
+            // 1. Prepara CNPJ em dois formatos (Limpo e Formatado)
+            const cnpjLimpo = cnpj.replace(/\D/g, ""); 
+            const cnpjFormatado = cnpjLimpo.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+            
+            // Busca por qualquer um dos dois formatos
+            const { data: listCnpj, error: errCnpj } = await supabase
+                .from('empresas')
+                .select('id, cnpj')
+                .or(`cnpj.eq.${cnpjLimpo},cnpj.eq.${cnpjFormatado}`)
+                .limit(1);
+
+            if (errCnpj) {
+                console.error("Erro SQL CNPJ:", errCnpj);
+                throw errCnpj;
+            }
+            
+            if (listCnpj && listCnpj.length > 0) {
+                console.warn("Duplicidade de CNPJ encontrada:", listCnpj);
+                feedback.textContent = `Já existe uma empresa cadastrada com este CNPJ (${listCnpj[0].cnpj}).`;
+                feedback.classList.add("error");
+                btnSalvar.disabled = false;
+                btnSalvar.textContent = "Salvar cadastro";
+                return;
+            }
+
+            // 2. Verifica Nome (Case insensitive)
+            const { data: listNome, error: errNome } = await supabase
+                .from('empresas')
+                .select('id, nome')
+                .ilike('nome', nome.trim())
+                .limit(1);
+
+            if (errNome) {
+                console.error("Erro SQL Nome:", errNome);
+                throw errNome;
+            }
+
+            if (listNome && listNome.length > 0) {
+                console.warn("Duplicidade de Nome encontrada:", listNome);
+                feedback.textContent = `Já existe uma empresa cadastrada com o nome "${listNome[0].nome}".`;
+                feedback.classList.add("error");
+                btnSalvar.disabled = false;
+                btnSalvar.textContent = "Salvar cadastro";
+                return;
+            }
+
+            console.log("Verificação de duplicidade: OK (Nenhum conflito encontrado)");
+
+        } catch (checkErr) {
+            console.error("Erro crítico ao verificar duplicidade:", checkErr);
+            feedback.textContent = "Erro ao validar dados no servidor. Verifique sua conexão e tente novamente.";
+            feedback.classList.add("error");
+            btnSalvar.disabled = false;
+            btnSalvar.textContent = "Salvar cadastro";
+            return;
+        }
+    }
+    // --------------------------------------------------
 
     // Processamento de arquivos
     const pcmsInput = document.getElementById("pcmpdf");
@@ -258,10 +395,42 @@ function registrarEnvioFormulario(session) {
       empresaExistente = await getCompanyById(idExistente);
     }
 
+    // --- VALIDAÇÃO DE PERMISSÃO (NON-ADMIN) ---
+    if (session.perfil !== "admin" && idExistente && empresaExistente) {
+        // Verifica se tentou mudar dados básicos
+        if (nome !== empresaExistente.nome || cnpj !== empresaExistente.cnpj || statusEmpresa !== empresaExistente.statusEmpresa) {
+            feedback.textContent = "Apenas administradores podem alterar dados da empresa.";
+            feedback.classList.add("error");
+            btnSalvar.disabled = false;
+            return;
+        }
+        
+        // Verifica se tentou substituir documento existente
+        let docsOriginais = empresaExistente.documentos || {};
+        if (typeof docsOriginais === 'string') { try{docsOriginais=JSON.parse(docsOriginais)}catch(e){} }
+        
+        if (docsOriginais.pcmso && arquivos.pcmso) {
+            feedback.textContent = "Você não tem permissão para substituir o PCMSO existente.";
+            feedback.classList.add("error");
+            btnSalvar.disabled = false; return;
+        }
+        if (docsOriginais.ltcat && arquivos.ltcat) {
+            feedback.textContent = "Você não tem permissão para substituir o LTCAT existente.";
+            feedback.classList.add("error");
+            btnSalvar.disabled = false; return;
+        }
+        if (docsOriginais.pgr && arquivos.pgr) {
+            feedback.textContent = "Você não tem permissão para substituir o PGR existente.";
+            feedback.classList.add("error");
+            btnSalvar.disabled = false; return;
+        }
+    }
+    // ------------------------------------------
+
     // Regra: "Não permitir cadastro sem os 3 arquivos" (apenas se for nova empresa)
     // Se for edição, pode salvar sem re-enviar arquivo, DESDE QUE as datas estejam preenchidas.
     
-    // Validação de datas: Para cada documento que EXISTE (novo ou antigo), as datas são obrigatórias.
+    // Validação de datas e responsáveis: Para cada documento que EXISTE (novo ou antigo), as datas e o responsável são obrigatórios.
     // Como saber se existe? Se tem arquivo novo OU se já existia no banco.
 
     const checkDocExists = (tipo, fileInput) => {
@@ -270,26 +439,26 @@ function registrarEnvioFormulario(session) {
         return false;
     };
 
-    // Valida datas apenas para documentos que vão existir
+    // Valida datas e responsáveis apenas para documentos que vão existir
     if (checkDocExists("pcmso", arquivos.pcmso)) {
-        if (!pcmInicio || !pcmTermino) {
-            feedback.textContent = "Preencha as datas de vigência do PCMSO.";
+        if (!pcmInicio || !pcmTermino || !pcmsoMedico) {
+            feedback.textContent = "Preencha as datas de vigência e o médico coordenador do PCMSO.";
             feedback.classList.add("error");
             btnSalvar.disabled = false;
             return;
         }
     }
     if (checkDocExists("ltcat", arquivos.ltcat)) {
-        if (!ltcatInicio || !ltcatTermino) {
-            feedback.textContent = "Preencha as datas de vigência do LTCAT.";
+        if (!ltcatInicio || !ltcatTermino || !ltcatResponsavel) {
+            feedback.textContent = "Preencha as datas de vigência e o responsável técnico do LTCAT.";
             feedback.classList.add("error");
             btnSalvar.disabled = false;
             return;
         }
     }
     if (checkDocExists("pgr", arquivos.pgr)) {
-        if (!pgrInicio || !pgrTermino) {
-            feedback.textContent = "Preencha as datas de vigência do PGR.";
+        if (!pgrInicio || !pgrTermino || !pgrResponsavel) {
+            feedback.textContent = "Preencha as datas de vigência e o responsável técnico do PGR.";
             feedback.classList.add("error");
             btnSalvar.disabled = false;
             return;
@@ -306,56 +475,86 @@ function registrarEnvioFormulario(session) {
       }
     }
 
+    // --- BLOQUEIO RIGÍDO DE DADOS PARA NÃO-ADMINS ---
+    // Se não for admin, ignoramos qualquer input de texto alterado e usamos os dados originais do banco.
+    if (session.perfil !== "admin" && idExistente && empresaExistente) {
+        // Força reversão para dados originais
+        /* 
+           Nota: As variáveis 'nome', 'cnpj', etc. são const e não podem ser reatribuídas.
+           Portanto, vamos criar um objeto 'dadosFinais' que será usado na montagem do payload,
+           em vez de usar as variáveis diretamente.
+        */
+    }
+    
+    // Objeto com os dados que serão salvos
+    let dadosSalvar = {
+        nome,
+        cnpj,
+        statusEmpresa,
+        esocial: esocialValue === "sim",
+        observacoes,
+        tipo,
+        parentCompanyId
+    };
+
+    if (session.perfil !== "admin" && idExistente && empresaExistente) {
+        // Sobrescreve com dados originais para garantir que nada foi editado
+        dadosSalvar.nome = empresaExistente.nome;
+        dadosSalvar.cnpj = empresaExistente.cnpj;
+        dadosSalvar.statusEmpresa = empresaExistente.statusEmpresa;
+        dadosSalvar.esocial = empresaExistente.esocial;
+        dadosSalvar.observacoes = empresaExistente.observacoes;
+        dadosSalvar.tipo = empresaExistente.tipo;
+        dadosSalvar.parentCompanyId = empresaExistente.parentCompanyId;
+    }
+    // ------------------------------------------------
+
     // Processar upload de arquivos e salvar dados
     const documentosFinais = empresaExistente?.documentos || {};
 
     try {
       // Função helper para montar objeto do documento
-      const updateDocData = async (tipo, file, inicio, termino) => {
+      const updateDocData = async (tipo, file, inicio, termino, responsavel) => {
           // Se enviou arquivo novo, faz upload
           if (file) {
-             const url = await uploadFileToStorage(file, nome, tipo.toUpperCase());
+             const url = await uploadFileToStorage(file, dadosSalvar.nome, tipo.toUpperCase());
              documentosFinais[tipo] = {
                  nomeArquivo: file.name,
                  dataUploadISO: new Date().toISOString(),
                  dataUrl: url,
                  ano: inicio.slice(0, 4),
                  dataInicio: inicio,
-                 dataTermino: termino
+                 dataTermino: termino,
+                 responsavel: responsavel
              };
           } else if (documentosFinais[tipo]) {
-             // Se não enviou arquivo mas documento existe, atualiza apenas as datas
-             documentosFinais[tipo].dataInicio = inicio;
-             documentosFinais[tipo].dataTermino = termino;
-             documentosFinais[tipo].ano = inicio.slice(0, 4);
+             // Documento já existe.
+             // Se for admin, atualiza datas e responsável.
+             // Se NÃO for admin, mantém originais (impede edição).
+             if (session.perfil === "admin") {
+                 documentosFinais[tipo].dataInicio = inicio;
+                 documentosFinais[tipo].dataTermino = termino;
+                 documentosFinais[tipo].ano = inicio.slice(0, 4);
+                 documentosFinais[tipo].responsavel = responsavel;
+             }
+             // Se não for admin, não faz nada = mantém o objeto como estava no banco.
           }
       };
 
-      await updateDocData("pcmso", arquivos.pcmso, pcmInicio, pcmTermino);
-      await updateDocData("ltcat", arquivos.ltcat, ltcatInicio, ltcatTermino);
-      await updateDocData("pgr", arquivos.pgr, pgrInicio, pgrTermino);
+      await updateDocData("pcmso", arquivos.pcmso, pcmInicio, pcmTermino, pcmsoMedico);
+      await updateDocData("ltcat", arquivos.ltcat, ltcatInicio, ltcatTermino, ltcatResponsavel);
+      await updateDocData("pgr", arquivos.pgr, pgrInicio, pgrTermino, pgrResponsavel);
 
       // Preparar objeto para salvar
-      // Nota: Mantemos dataInicio/dataTermino na raiz da empresa apenas como referência geral (ex: menor dataInicio e maior dataTermino)
-      // ou deixamos vazio se não for mais usado.
-      // Para compatibilidade, vamos salvar a MAIOR data de término como referência de "contrato ativo".
-      
       const datasTermino = [pcmTermino, ltcatTermino, pgrTermino].filter(d => d).sort();
       const maiorTermino = datasTermino.length ? datasTermino[datasTermino.length - 1] : null;
       const datasInicio = [pcmInicio, ltcatInicio, pgrInicio].filter(d => d).sort();
       const menorInicio = datasInicio.length ? datasInicio[0] : null;
 
       const payload = {
-        tipo,
-        parentCompanyId,
-        nome,
-        cnpj,
-        statusEmpresa,
-        dataInicio: menorInicio, // Referência
-        dataTermino: maiorTermino, // Referência
-        esocial: esocialValue === "sim",
-        medicoCoordenador,
-        observacoes,
+        ...dadosSalvar, // Usa os dados seguros
+        dataInicio: menorInicio, 
+        dataTermino: maiorTermino,
         documentos: documentosFinais,
       };
 

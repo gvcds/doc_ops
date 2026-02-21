@@ -7,6 +7,12 @@
   - Uso de calcularStatusGeralEmpresa para status consolidado
 */
 
+// Variáveis de estado para paginação e filtro
+let paginaAtual = 1;
+const itensPorPagina = 10;
+let arvoreOriginal = [];
+let arvoreFiltrada = [];
+
 document.addEventListener("DOMContentLoaded", function () {
   const session = requireAuth();
   if (!session) return;
@@ -15,60 +21,176 @@ document.addEventListener("DOMContentLoaded", function () {
   registerLogoutButton();
 
   montarListaEmpresas(session);
+  configurarFiltros(session);
   configurarModalPdf();
 });
 
 /**
- * Monta a listagem de empresas principais, com suas filiais vinculadas.
+ * Configura o listener do campo de pesquisa.
+ */
+function configurarFiltros(session) {
+  const searchInput = document.getElementById("search-input");
+  if (!searchInput) return;
+
+  searchInput.addEventListener("input", function (e) {
+    const termo = e.target.value.toLowerCase().trim();
+    aplicarFiltro(termo, session);
+  });
+}
+
+/**
+ * Aplica o filtro na lista original e atualiza a view.
+ */
+function aplicarFiltro(termo, session) {
+  if (!termo) {
+    arvoreFiltrada = [...arvoreOriginal];
+  } else {
+    // Filtra empresas (matriz ou filiais) que correspondem ao termo
+    arvoreFiltrada = arvoreOriginal.filter(grupo => {
+      const matrizMatch = (grupo.principal.nome || "").toLowerCase().includes(termo) ||
+                          (grupo.principal.cnpj || "").replace(/\D/g, "").includes(termo);
+      
+      // Verifica se alguma filial corresponde
+      const filiaisMatch = (grupo.filiais || []).some(filial => 
+        (filial.nome || "").toLowerCase().includes(termo) ||
+        (filial.cnpj || "").replace(/\D/g, "").includes(termo)
+      );
+
+      return matrizMatch || filiaisMatch;
+    });
+  }
+
+  paginaAtual = 1; // Reseta para a primeira página
+  renderizarPagina(session);
+}
+
+/**
+ * Busca a árvore de empresas e inicializa a listagem.
  */
 async function montarListaEmpresas(session) {
   const container = document.getElementById("lista-empresas");
-  container.innerHTML = "<p class='text-muted'>Carregando empresas...</p>"; // Feedback de carregamento
+  container.innerHTML = "<p class='text-muted'>Carregando empresas...</p>";
 
   try {
     const arvore = await getCompanyTree();
-
-    container.innerHTML = ""; // Limpa o feedback de carregamento
-
+    
     if (!arvore || !arvore.length) {
-      const empty = document.createElement("p");
-      empty.className = "text-muted";
-      empty.textContent =
-        "Nenhuma empresa cadastrada ainda. Acesse 'Cadastrar empresa' para iniciar.";
-      container.appendChild(empty);
+      arvoreOriginal = [];
+      arvoreFiltrada = [];
+      renderizarPagina(session); // Renderiza estado vazio
       return;
     }
 
-    arvore.forEach((grupo) => {
-      const { principal, filiais } = grupo;
+    // Armazena dados globais
+    arvoreOriginal = arvore;
+    arvoreFiltrada = [...arvore];
 
-      // Wrapper agrupa a matriz e o bloco de filiais logo abaixo.
-      const grupoWrapper = document.createElement("div");
-      grupoWrapper.className = "empresa-grupo";
+    renderizarPagina(session);
 
-      // Container que receberá os cards das filiais (inicia recolhido).
-      const filiaisWrapper = document.createElement("div");
-      filiaisWrapper.className = "empresa-filiais-list";
-
-      // Card da empresa principal (matriz)
-      const cardMatriz = criarCardEmpresa(principal, filiais, filiaisWrapper, session);
-
-      // Cards de filiais (um card por filial, levemente recuados)
-      if (filiais && filiais.length) {
-        filiais.forEach((filial) => {
-          const cardFilial = criarCardFilial(filial, session);
-          filiaisWrapper.appendChild(cardFilial);
-        });
-      }
-
-      grupoWrapper.appendChild(cardMatriz);
-      grupoWrapper.appendChild(filiaisWrapper);
-      container.appendChild(grupoWrapper);
-    });
   } catch (error) {
     console.error("Erro ao carregar empresas:", error);
     container.innerHTML = "<p class='error'>Erro ao carregar empresas. Verifique o console ou sua conexão.</p>";
   }
+}
+
+/**
+ * Renderiza os itens da página atual e atualiza controles de paginação.
+ */
+function renderizarPagina(session) {
+  const container = document.getElementById("lista-empresas");
+  container.innerHTML = "";
+
+  if (arvoreFiltrada.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "text-muted";
+    empty.textContent = "Nenhuma empresa encontrada.";
+    container.appendChild(empty);
+    atualizarControlesPaginacao(0);
+    return;
+  }
+
+  // Paginação
+  const totalItens = arvoreFiltrada.length;
+  const totalPaginas = Math.ceil(totalItens / itensPorPagina);
+
+  // Garante que a página atual é válida
+  if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+  if (paginaAtual < 1) paginaAtual = 1;
+
+  const inicio = (paginaAtual - 1) * itensPorPagina;
+  const fim = inicio + itensPorPagina;
+  const itensPagina = arvoreFiltrada.slice(inicio, fim);
+
+  // Renderiza itens
+  itensPagina.forEach((grupo) => {
+    const { principal, filiais } = grupo;
+
+    const grupoWrapper = document.createElement("div");
+    grupoWrapper.className = "empresa-grupo";
+
+    const filiaisWrapper = document.createElement("div");
+    filiaisWrapper.className = "empresa-filiais-list";
+
+    const cardMatriz = criarCardEmpresa(principal, filiais, filiaisWrapper, session);
+
+    if (filiais && filiais.length) {
+      filiais.forEach((filial) => {
+        const cardFilial = criarCardFilial(filial, session);
+        filiaisWrapper.appendChild(cardFilial);
+      });
+    }
+
+    grupoWrapper.appendChild(cardMatriz);
+    grupoWrapper.appendChild(filiaisWrapper);
+    container.appendChild(grupoWrapper);
+  });
+
+  atualizarControlesPaginacao(totalPaginas);
+}
+
+/**
+ * Cria os botões de paginação.
+ */
+function atualizarControlesPaginacao(totalPaginas) {
+  const paginationContainer = document.getElementById("pagination-controls");
+  if (!paginationContainer) return;
+
+  paginationContainer.innerHTML = "";
+
+  if (totalPaginas <= 1) return;
+
+  // Botão Anterior
+  const btnPrev = document.createElement("button");
+  btnPrev.className = "btn btn-secondary btn-sm";
+  btnPrev.textContent = "« Anterior";
+  btnPrev.disabled = paginaAtual === 1;
+  btnPrev.onclick = () => {
+    if (paginaAtual > 1) {
+      paginaAtual--;
+      renderizarPagina(requireAuth()); // Re-renderiza com sessão
+    }
+  };
+  paginationContainer.appendChild(btnPrev);
+
+  // Indicador de página
+  const indicador = document.createElement("span");
+  indicador.className = "text-muted";
+  indicador.style.margin = "0 10px";
+  indicador.textContent = `Página ${paginaAtual} de ${totalPaginas}`;
+  paginationContainer.appendChild(indicador);
+
+  // Botão Próximo
+  const btnNext = document.createElement("button");
+  btnNext.className = "btn btn-secondary btn-sm";
+  btnNext.textContent = "Próximo »";
+  btnNext.disabled = paginaAtual === totalPaginas;
+  btnNext.onclick = () => {
+    if (paginaAtual < totalPaginas) {
+      paginaAtual++;
+      renderizarPagina(requireAuth());
+    }
+  };
+  paginationContainer.appendChild(btnNext);
 }
 
 /**
@@ -170,7 +292,7 @@ function criarCardEmpresa(empresa, filiais, filiaisWrapper, session) {
   detalhes.className = "empresa-detalhes";
 
   const linha1 = document.createElement("div");
-  linha1.textContent = `Status: ${empresa.statusEmpresa} · Médico coordenador: ${empresa.medicoCoordenador}`;
+  linha1.textContent = `Status: ${empresa.statusEmpresa}`;
 
   const linha2 = document.createElement("div");
   linha2.textContent = `E-Social: ${empresa.esocial ? "Sim" : "Não"}`;
@@ -270,7 +392,7 @@ function criarCardFilial(empresa, session) {
   detalhes.className = "empresa-detalhes";
 
   const linha1 = document.createElement("div");
-  linha1.textContent = `Status: ${empresa.statusEmpresa} · Médico coordenador: ${empresa.medicoCoordenador}`;
+  linha1.textContent = `Status: ${empresa.statusEmpresa}`;
 
   const linha2 = document.createElement("div");
   linha2.textContent = `E-Social: ${empresa.esocial ? "Sim" : "Não"}`;
@@ -351,13 +473,47 @@ function criarBotoesDocumentos(empresa, session) {
   ["pcmso", "ltcat", "pgr"].forEach((tipo) => {
     const doc = docs[tipo];
     
-    // Grupo de botões
+    // Grupo de botões e info
+    const docWrapper = document.createElement("div");
+    docWrapper.style.display = "flex";
+    docWrapper.style.flexDirection = "column";
+    docWrapper.style.gap = "4px";
+    docWrapper.style.marginBottom = "8px";
+    docWrapper.style.padding = "10px";
+    docWrapper.style.border = "1px solid rgba(0,0,0,0.1)";
+    docWrapper.style.borderRadius = "8px";
+    docWrapper.style.backgroundColor = "rgba(0,0,0,0.02)";
+    docWrapper.style.minWidth = "220px";
+
+    const docTypeLabel = document.createElement("div");
+    docTypeLabel.style.fontWeight = "bold";
+    docTypeLabel.style.fontSize = "0.9rem";
+    docTypeLabel.textContent = tipo.toUpperCase();
+    
+    // Calcula status para cor do label (se o documento existe)
+    if (doc) {
+        const dataFim = doc.dataTermino || empresa.dataTermino;
+        const statusDoc = calcularStatusPorDataTermino(dataFim);
+        if (statusDoc.status === "vencido") docTypeLabel.style.color = "#e74c3c";
+        else if (statusDoc.status === "aviso") docTypeLabel.style.color = "#f1c40f";
+    }
+
+    docWrapper.appendChild(docTypeLabel);
+
     const docGroup = document.createElement("div");
     docGroup.className = "btn-group";
     docGroup.style.display = "inline-flex";
     docGroup.style.alignItems = "center";
     
     if (doc) {
+        // Info do responsável
+        const respInfo = document.createElement("div");
+        respInfo.style.fontSize = "0.8rem";
+        respInfo.style.color = "var(--text-muted)";
+        const labelResp = tipo === "pcmso" ? "Médico coordenador" : "Responsável técnico";
+        respInfo.textContent = `${labelResp}: ${doc.responsavel || "-"}`;
+        docWrapper.appendChild(respInfo);
+
         // Calcula status individual deste documento
         const dataFim = doc.dataTermino || empresa.dataTermino; // Fallback
         const statusDoc = calcularStatusPorDataTermino(dataFim);
@@ -377,7 +533,7 @@ function criarBotoesDocumentos(empresa, session) {
         btnView.title = `${doc.nomeArquivo || "PDF"} (${validadeTexto})`;
         
         // Texto do botão
-        btnView.innerHTML = `<span style="color:${statusColor}">${tipo.toUpperCase()}</span>`;
+        btnView.innerHTML = `Visualizar`;
         
         // Se for admin, remove bordas direitas
         if (session.perfil === "admin") {
@@ -422,27 +578,26 @@ function criarBotoesDocumentos(empresa, session) {
             docGroup.appendChild(btnDel);
         }
     } else {
-        // 3. Botão de Adicionar (Apenas Admin)
-        if (session.perfil === "admin") {
-            const btnAdd = document.createElement("button");
-            btnAdd.type = "button";
-            btnAdd.className = "btn";
-            btnAdd.style.border = "1px dashed currentColor";
-            btnAdd.style.opacity = "0.7";
-            btnAdd.textContent = `+ ${tipo.toUpperCase()}`;
-            btnAdd.title = "Adicionar documento faltando";
-            
-            btnAdd.addEventListener("click", function(e) {
-                e.stopPropagation();
-                const params = new URLSearchParams({ id: empresa.id });
-                window.location.href = `../cadastro/index.html?${params.toString()}`;
-            });
-            docGroup.appendChild(btnAdd);
-        }
+        // 3. Botão de Adicionar (Disponível para todos que podem criar)
+        const btnAdd = document.createElement("button");
+        btnAdd.type = "button";
+        btnAdd.className = "btn";
+        btnAdd.style.border = "1px dashed currentColor";
+        btnAdd.style.opacity = "0.7";
+        btnAdd.textContent = `Adicionar PDF`;
+        btnAdd.title = "Adicionar documento faltando";
+        
+        btnAdd.addEventListener("click", function(e) {
+            e.stopPropagation();
+            const params = new URLSearchParams({ id: empresa.id });
+            window.location.href = `../cadastro/index.html?${params.toString()}`;
+        });
+        docGroup.appendChild(btnAdd);
     }
     
     if (docGroup.children.length > 0) {
-        docButtons.appendChild(docGroup);
+        docWrapper.appendChild(docGroup);
+        docButtons.appendChild(docWrapper);
     }
   });
   
