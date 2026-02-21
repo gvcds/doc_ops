@@ -148,15 +148,26 @@
 
             <div class="form-group">
               <label for="cnpj">CNPJ</label>
-              <input
-                type="text"
-                id="cnpj"
-                class="form-control"
-                placeholder="00.000.000/0000-00"
-                maxlength="14"
-                inputmode="numeric"
-                required
-              />
+              <div class="input-group-horizontal" style="display: flex; gap: 8px;">
+                <input
+                  type="text"
+                  id="cnpj"
+                  class="form-control"
+                  placeholder="00.000.000/0000-00"
+                  maxlength="14"
+                  inputmode="numeric"
+                  required
+                  style="flex: 1;"
+                />
+                <button
+                  type="button"
+                  id="btn-repetir-cnpj"
+                  class="btn btn-secondary"
+                  style="display: none; white-space: nowrap;"
+                >
+                  Repetir CNPJ da matriz
+                </button>
+              </div>
             </div>
 
             <div class="form-group form-group-inline">
@@ -268,8 +279,8 @@
             </div>
 
             <p class="text-muted mt-2">
-              Apenas arquivos PDF são aceitos. O cadastro só será permitido
-              quando os três documentos forem anexados.
+              Apenas arquivos PDF são aceitos. O cadastro será permitido
+              ao anexar pelo menos um dos documentos obrigatórios.
             </p>
 
             <div id="empresa-feedback" class="feedback error mt-2"></div>

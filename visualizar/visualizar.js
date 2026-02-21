@@ -128,6 +128,7 @@ function criarCardEmpresa(empresa, filiais, filiaisWrapper, session) {
       tipo: "filial",
       parentId: empresa.id,
       parentName: empresa.nome,
+      parentCnpj: empresa.cnpj,
     });
     window.location.href = "../cadastro/index.html?" + params.toString();
   });

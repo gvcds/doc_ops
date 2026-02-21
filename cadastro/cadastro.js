@@ -31,6 +31,7 @@ function obterParametrosURL() {
     tipo: params.get("tipo") || "principal",
     parentCompanyId: params.get("parentId"),
     parentName: params.get("parentName"),
+    parentCnpj: params.get("parentCnpj"),
   };
 }
 
@@ -38,7 +39,7 @@ function obterParametrosURL() {
  * Configura a interface de acordo com o contexto.
  */
 function inicializarTelaCadastro(session) {
-  const { id, tipo, parentCompanyId, parentName } = obterParametrosURL();
+  const { id, tipo, parentCompanyId, parentName, parentCnpj } = obterParametrosURL();
 
   const inputId = document.getElementById("empresa-id");
   const inputTipo = document.getElementById("tipo");
@@ -47,6 +48,7 @@ function inicializarTelaCadastro(session) {
   const titulo = document.getElementById("cadastro-titulo");
   const subtitulo = document.getElementById("cadastro-subtitulo");
   const btnVoltar = document.getElementById("btn-voltar");
+  const btnRepetirCnpj = document.getElementById("btn-repetir-cnpj");
 
   inputTipo.value = tipo === "filial" ? "filial" : "principal";
   if (parentCompanyId) inputParent.value = parentCompanyId;
@@ -56,6 +58,18 @@ function inicializarTelaCadastro(session) {
     subtitulo.textContent = parentName
       ? `Filial vinculada à empresa: ${parentName}`
       : "Preencha os dados da filial vinculada à empresa principal.";
+
+    // Mostra botão de repetir CNPJ se for uma nova filial (não edição)
+    if (!id && parentCnpj && btnRepetirCnpj) {
+      btnRepetirCnpj.style.display = "inline-block";
+      btnRepetirCnpj.addEventListener("click", function () {
+        const cnpjInput = document.getElementById("cnpj");
+        if (cnpjInput) {
+          cnpjInput.value = parentCnpj;
+          cnpjInput.dispatchEvent(new Event("input"));
+        }
+      });
+    }
   } else {
     titulo.textContent = id ? "Editar empresa" : "Cadastrar empresa";
   }
@@ -282,10 +296,10 @@ function registrarEnvioFormulario(session) {
         }
     }
     
-    // Se for nova empresa, continua exigindo os 3 arquivos
+    // Se for nova empresa, exige ao menos um dos 3 documentos
     if (!idExistente) {
-      if (!arquivos.pcmso || !arquivos.ltcat || !arquivos.pgr) {
-        feedback.textContent = "Para cadastrar, anexe os três PDFs obrigatórios.";
+      if (!arquivos.pcmso && !arquivos.ltcat && !arquivos.pgr) {
+        feedback.textContent = "Para cadastrar, anexe pelo menos um dos três documentos obrigatórios (PCMSO, LTCAT ou PGR).";
         feedback.classList.add("error");
         btnSalvar.disabled = false;
         return;
