@@ -491,24 +491,40 @@ function registrarEnvioFormulario(session) {
 
     // Processar upload de arquivos e salvar dados
     const documentosFinais = empresaExistente?.documentos || {};
+    const docsParaHistorico = []; // Armazena dados para salvar no histórico
 
     try {
       // Função helper para montar objeto do documento
       const updateDocData = async (tipo, file, inicio, termino, responsavel) => {
-          // Se enviou arquivo novo, faz upload
-          if (file) {
-             const url = await uploadFileToStorage(file, dadosSalvar.nome, tipo.toUpperCase());
-             documentosFinais[tipo] = {
-                 nomeArquivo: file.name,
-                 dataUploadISO: new Date().toISOString(),
-                 dataUrl: url,
-                 ano: inicio.slice(0, 4),
-                 dataInicio: inicio,
-                 dataTermino: termino,
-                 responsavel: responsavel
-             };
-          } else if (documentosFinais[tipo]) {
-             // Documento já existe.
+                       // Se enviou arquivo novo, faz upload
+                    if (file) {
+                       const url = await uploadFileToStorage(file, dadosSalvar.nome, tipo.toUpperCase());
+                       
+                       if (url) {
+                           // Atualiza objeto principal
+                           documentosFinais[tipo] = {
+                               nomeArquivo: file.name,
+                               dataUploadISO: new Date().toISOString(),
+                               dataUrl: url,
+                               ano: inicio.slice(0, 4),
+                               dataInicio: inicio,
+                               dataTermino: termino,
+                               responsavel: responsavel
+                           };
+                           
+                           // Prepara para histórico
+                           docsParaHistorico.push({
+                               tipoDoc: tipo.toUpperCase(),
+                               nomeArquivo: file.name,
+                               url: url,
+                               ano: inicio.slice(0, 4),
+                               usuario: session.email || session.usuario || "Sistema"
+                           });
+                       } else {
+                           console.error(`Falha no upload do documento ${tipo}`);
+                       }
+          
+                    } else if (documentosFinais[tipo]) {             // Documento já existe.
              // Se for admin, atualiza datas e responsável.
              // Se NÃO for admin, mantém originais (impede edição).
              if (session.perfil === "admin") {
@@ -546,6 +562,35 @@ function registrarEnvioFormulario(session) {
       }
 
       if (result) {
+        // --- SALVAR NO HISTÓRICO ---
+        if (docsParaHistorico.length > 0) {
+            let nomeGrupo = dadosSalvar.nome; // Se for principal, o grupo é ela mesma
+            
+            if (dadosSalvar.tipo === "filial" && dadosSalvar.parentCompanyId) {
+                // Tenta pegar nome do pai da URL primeiro (mais rápido) ou busca no banco
+                // Nota: parentName vem da URL na inicialização, mas não é salvo em variável global.
+                // Vamos buscar no banco para garantir.
+                const parent = await getCompanyById(dadosSalvar.parentCompanyId);
+                if (parent) nomeGrupo = parent.nome;
+            }
+
+            // Envia cada documento novo para o histórico
+            for (const doc of docsParaHistorico) {
+                await saveToHistory({
+                    nomeUnidade: dadosSalvar.nome,
+                    cnpj: dadosSalvar.cnpj,
+                    tipo: dadosSalvar.tipo,
+                    nomeGrupo: nomeGrupo,
+                    tipoDoc: doc.tipoDoc,
+                    ano: doc.ano,
+                    nomeArquivo: doc.nomeArquivo,
+                    url: doc.url,
+                    usuario: doc.usuario
+                });
+            }
+        }
+        // ---------------------------
+
         feedback.textContent = "Cadastro salvo com sucesso!";
         feedback.classList.add("success");
         setTimeout(() => {

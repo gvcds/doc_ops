@@ -156,6 +156,132 @@ async function getCompanyTree() {
   }));
 }
 
+/**
+ * Salva um registro na tabela historico_arquivos.
+ * Deve ser chamado ao salvar um documento.
+ */
+async function saveToHistory(dados) {
+  if (!supabase) return null;
+  
+  const payload = {
+    empresa_nome: dados.nomeUnidade,       // Nome da unidade (Matriz ou Filial)
+    empresa_cnpj: dados.cnpj,
+    tipo_empresa: dados.tipo,              // 'principal' ou 'filial'
+    nome_grupo: dados.nomeGrupo,           // Nome da Matriz (para agrupar)
+    
+    tipo_documento: dados.tipoDoc,         // 'PCMSO', etc.
+    ano_referencia: dados.ano,
+    nome_arquivo: dados.nomeArquivo,
+    url_arquivo: dados.url,
+    
+    usuario_responsavel: dados.usuario || null
+  };
+
+  const { error } = await supabase
+    .from('historico_arquivos')
+    .insert([payload]);
+
+  if (error) {
+    console.error("Erro ao salvar histórico:", error);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Busca e estrutura a árvore de histórico a partir da tabela historico_arquivos.
+ * Substitui a lógica antiga que dependía da existência da empresa.
+ */
+async function getHistoryTree() {
+  if (!supabase) return [];
+
+  const { data, error } = await supabase
+    .from('historico_arquivos')
+    .select('*')
+    .order('nome_grupo', { ascending: true }); // Ordena pelo grupo (Matriz)
+
+  if (error) {
+    console.error("Erro ao buscar histórico:", error);
+    return [];
+  }
+
+  if (!data || data.length === 0) return [];
+
+  // Agrupamento manual:
+  // Estrutura desejada: [ { principal: {nome: "Grupo X"}, filiais: [ {nome: "Unidade A", documentos: [...]}, ... ] } ]
+  
+  const gruposMap = {}; // Chave: nome_grupo
+
+  data.forEach(item => {
+    const grupoNome = item.nome_grupo || item.empresa_nome; // Fallback
+    
+    if (!gruposMap[grupoNome]) {
+      gruposMap[grupoNome] = {
+        principal: { nome: grupoNome, documentos: {} }, // Mock do objeto principal
+        unidadesMap: {} // Mapa temporário de unidades dentro do grupo
+      };
+    }
+    
+    // Identifica a unidade (pode ser a própria matriz ou uma filial)
+    const unidadeNome = item.empresa_nome;
+    const isMatriz = (item.tipo_empresa === 'principal');
+    
+    let unidadeRef;
+    
+    if (isMatriz) {
+      // Se o registro é da matriz, associamos à "principal" do grupo
+      unidadeRef = gruposMap[grupoNome].principal;
+    } else {
+      // Se é filial, cria entrada no mapa de unidades se não existir
+      if (!gruposMap[grupoNome].unidadesMap[unidadeNome]) {
+        gruposMap[grupoNome].unidadesMap[unidadeNome] = {
+          nome: unidadeNome,
+          tipo: 'filial',
+          documentos: {}
+        };
+      }
+      unidadeRef = gruposMap[grupoNome].unidadesMap[unidadeNome];
+    }
+    
+    // Adiciona o documento na estrutura da unidade
+    const tipoDocKey = item.tipo_documento.toLowerCase();
+    
+    // A estrutura de documentos esperada pelo frontend é:
+    // documentos: { "pcmso": { ... }, "ltcat": { ... } }
+    // Mas aqui temos MÚLTIPLOS documentos do mesmo tipo (histórico).
+    // O frontend atual (historico.js) agrupa por ANO.
+    // Vamos adaptar: O frontend espera `documentos[tipo]` com um único objeto?
+    // Não, `historico.js` chama `agruparDocumentosPorAno(empresa)`.
+    // Lá ele itera sobre `["pcmso", "ltcat", "pgr"]` e pega `docs[tipo]`.
+    // Isso é um problema: O código original suportava APENAS 1 documento por tipo (o atual).
+    // O histórico DEVE suportar múltiplos.
+    // SOLUÇÃO: Vamos retornar uma estrutura diferente e adaptar o historico.js também.
+    // Ou, para minimizar mudanças, vamos simular que cada entrada no histórico é um "doc" num array.
+    
+    if (!unidadeRef.listaDocsHistorico) {
+        unidadeRef.listaDocsHistorico = [];
+    }
+    
+    unidadeRef.listaDocsHistorico.push({
+        tipoDoc: item.tipo_documento,
+        nomeArquivo: item.nome_arquivo,
+        url: item.url_arquivo,
+        ano: item.ano_referencia,
+        dataUpload: item.created_at
+    });
+  });
+
+  // Converte o mapa em array
+  return Object.values(gruposMap).map(grupo => {
+    // Converte o mapa de unidades (filiais) em array
+    const filiaisArray = Object.values(grupo.unidadesMap);
+    return {
+      principal: grupo.principal,
+      filiais: filiaisArray
+    };
+  });
+}
+
 // Utilitário para converter snake_case do banco para camelCase do JS
 function mapSnakeToCamel(data) {
   if (!data) return null;

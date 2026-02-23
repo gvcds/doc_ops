@@ -26,11 +26,11 @@ async function montarArvoreHistorico() {
   container.innerHTML = "<p class='text-muted'>Carregando histórico...</p>";
 
   try {
-    const arvore = await getCompanyTree();
+    const arvore = await getHistoryTree(); // Busca do histórico persistente
     container.innerHTML = ""; // Limpa feedback
 
     if (!arvore || !arvore.length) {
-      container.innerHTML = "<p class='text-muted'>Nenhuma empresa encontrada.</p>";
+      container.innerHTML = "<p class='text-muted'>Nenhum histórico encontrado.</p>";
       return;
     }
 
@@ -70,7 +70,7 @@ function criarNoEmpresa(principal, filiais) {
 
   const title = document.createElement("span");
   title.className = "tree-title";
-  title.textContent = principal.nome.toUpperCase();
+  title.textContent = (principal.nome || "Empresa").toUpperCase();
 
   header.appendChild(icon);
   header.appendChild(title);
@@ -81,8 +81,11 @@ function criarNoEmpresa(principal, filiais) {
   children.className = "tree-children";
 
   // 1. Nó da Matriz (Documentos da principal)
-  const matrizNode = criarNoUnidade(principal, "Matriz (Principal)");
-  children.appendChild(matrizNode);
+  // Verifica se a matriz tem docs no histórico
+  if (principal.listaDocsHistorico && principal.listaDocsHistorico.length > 0) {
+      const matrizNode = criarNoUnidade(principal, "Matriz (Principal)");
+      children.appendChild(matrizNode);
+  }
 
   // 2. Nós das Filiais
   if (filiais && filiais.length > 0) {
@@ -132,7 +135,7 @@ function criarNoUnidade(empresa, label) {
   const children = document.createElement("div");
   children.className = "tree-children";
 
-  // Agrupa documentos por ano
+  // Agrupa documentos por ano (Usando listaDocsHistorico)
   const docsPorAno = agruparDocumentosPorAno(empresa);
   const anos = Object.keys(docsPorAno).sort((a, b) => b - a); // Decrescente
 
@@ -231,29 +234,21 @@ function criarNoArquivo(doc) {
  * Helper: Varre os documentos da empresa e agrupa por ano.
  * Retorna: { "2024": [ {tipoDoc, nomeArquivo, url}... ], "2025": ... }
  */
-function agruparDocumentosPorAno(empresa) {
-  const docs = empresa.documentos || {};
+function agruparDocumentosPorAno(unidade) {
+  const lista = unidade.listaDocsHistorico || [];
   const grupos = {};
 
-  ["pcmso", "ltcat", "pgr"].forEach(tipo => {
-    const docInfo = docs[tipo]; // ex: { nomeArquivo: "...", dataUrl: "...", ano: "2024" }
-    
-    if (docInfo && docInfo.dataUrl) {
-      // Tenta pegar o ano salvo, ou extrai da data de inicio da empresa, ou usa o ano atual
-      let ano = docInfo.ano;
-      if (!ano && empresa.dataInicio) {
-        ano = empresa.dataInicio.substring(0, 4);
-      }
-      if (!ano) ano = "Sem Data";
-
+  lista.forEach(doc => {
+      let ano = doc.ano;
+      if (!ano || ano === "undefined") ano = "Sem Data";
+      
       if (!grupos[ano]) grupos[ano] = [];
-
+      
       grupos[ano].push({
-        tipoDoc: tipo.toUpperCase(),
-        nomeArquivo: docInfo.nomeArquivo || "Documento.pdf",
-        url: docInfo.dataUrl
+          tipoDoc: (doc.tipoDoc || "DOC").toUpperCase(),
+          nomeArquivo: doc.nomeArquivo || "Documento",
+          url: doc.url
       });
-    }
   });
 
   return grupos;
